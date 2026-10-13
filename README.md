@@ -2,7 +2,14 @@
 
 Earth is collapsing. Rockets are leaving one by one, and you have to catch one before the last rocket leaves.
 
-A 2D browser platformer. Open `index.html` in a browser to play; there is nothing to install.
+A 2D platformer built with Flutter and the [Flame](https://flame-engine.org) engine. It runs in the browser as a Flutter web build.
+
+## Play locally
+
+```sh
+flutter pub get
+flutter run -d chrome
+```
 
 ## Controls
 
@@ -21,5 +28,15 @@ A 2D browser platformer. Open `index.html` in a browser to play; there is nothin
 
 ## Code layout
 
-- `src/game.html` is the game source (markup, styles and script in one file).
-- `build.sh` wraps it in a full HTML document as `index.html`. Run it after editing the source.
+- `lib/main.dart`: the page around the game (stage, controls caption, touch buttons).
+- `lib/game/starship_game.dart`: the `FlameGame`: input, level layout, physics, hazards, rockets and the camera.
+- `lib/game/render.dart`: all drawing (background, world, player, particles, HUD and screens).
+- `lib/game/model.dart`: the plain data classes.
+- `lib/game/audio.dart`: sound effects through `flame_audio`. The WAV files in `assets/audio` are synthesized.
+- `test/widget_test.dart`: simulation tests for movement, staggering, triggers, boarding and losing.
+
+## Deploying
+
+`.github/workflows/pages.yml` builds the web version and publishes it to GitHub Pages on every push to `main`. In the repository settings, under Pages, set the source to **GitHub Actions** once.
+
+Fonts: Bungee and Chakra Petch, both under the SIL Open Font License (see `assets/fonts`).
