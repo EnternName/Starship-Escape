@@ -12,16 +12,16 @@ import '../shared/draw.dart';
 part 'party_render.dart';
 
 /// After the Show: a top-down mini game. The show is over and the venue is
-/// packed. You are B, somewhere in the crowd is A, and you are trying to find
-/// each other. People are soft obstacles: walk gently and they make room,
-/// rush and you bounce off. Nothing ends the round.
+/// packed. You are A. B is somewhere in the crowd, chatting away and
+/// completely oblivious. Push through the people, get into B's line of sight
+/// and stay there until B finally notices you. Nothing ends the round.
 
 const double stageW = 960;
 const double stageH = 540;
 const double tile = 40;
 
 /// The venue. # wall, S stage, B bar, T table, P pillar, L sofa,
-/// D dance floor, a where A starts, b where B starts.
+/// D dance floor, b where A (you) starts, a where B starts.
 const List<String> venueMap = [
   '########################################',
   '#..........SSSSSSSSSSSSSSSS............#',
@@ -107,7 +107,7 @@ class Guest extends Person {
 class Seeker extends Person {
   Seeker(super.x, super.y, super.outfit, super.hair, super.skin, this.label);
   final String label;
-  double stun = 0, tx = 0, ty = 0, retarget = 0;
+  double stun = 0, tx = 0, ty = 0, retarget = 0, lookX = 0, lookY = 0;
 }
 
 class PartyGame extends FlameGame with KeyboardEvents {
@@ -133,6 +133,10 @@ class PartyGame extends FlameGame with KeyboardEvents {
   double shake = 0;
   bool warm = false;
   int nudges = 0;
+
+  /// How close B is to noticing A, from 0 to 1.
+  double attention = 0;
+  double noticeLine = 0;
   double _lastDt = 0;
   math.Random _seed = math.Random(1);
 
@@ -200,10 +204,15 @@ class PartyGame extends FlameGame with KeyboardEvents {
     _seed = math.Random(7);
     guests = [];
     final bs = _spawn('b'), as = _spawn('a');
-    b = Seeker(bs.dx, bs.dy, hex(0x2E9C9C), hex(0x2A1A14), hex(0xF0C8A8), 'B')..fy = -1;
-    a = Seeker(as.dx, as.dy, hex(0xE0456A), hex(0x5A2A1A), hex(0xF6D2B8), 'A');
-    a.tx = a.x;
-    a.ty = a.y;
+    a = Seeker(bs.dx, bs.dy, hex(0xE0456A), hex(0x5A2A1A), hex(0xF6D2B8), 'A')..fy = -1;
+    b = Seeker(as.dx, as.dy, hex(0x2E9C9C), hex(0x2A1A14), hex(0xF0C8A8), 'B');
+    b.tx = b.x;
+    b.ty = b.y;
+    b.retarget = 2;
+    b.lookX = b.x - 40;
+    b.lookY = b.y + 30;
+    attention = 0;
+    noticeLine = 0;
     // Chatting groups of 3 to 5, standing in a loose ring.
     var made = 0;
     final dancers = (crowdSize * 0.3).round();
@@ -242,13 +251,13 @@ class PartyGame extends FlameGame with KeyboardEvents {
     shake = 0;
     warm = false;
     nudges = 0;
-    cam = Offset((b.x - stageW / 2).clamp(0, worldW - stageW), (b.y - stageH / 2).clamp(0, worldH - stageH));
+    cam = Offset((a.x - stageW / 2).clamp(0, worldW - stageW), (a.y - stageH / 2).clamp(0, worldH - stageH));
   }
 
   void startGame() {
     reset();
     state = PartyState.play;
-    showBanner('THE SHOW IS OVER', 'A is somewhere in this crowd. Find each other.', 3.2);
+    showBanner('THE SHOW IS OVER', 'B is somewhere in this crowd. Get noticed.', 3.2);
   }
 
   // ---------- input ----------
@@ -365,10 +374,11 @@ class PartyGame extends FlameGame with KeyboardEvents {
     p.fy /= fl;
   }
 
-  void updateB(double dt) {
-    b.stun = math.max(0, b.stun - dt);
+  /// A is yours: arrow keys or WASD.
+  void updatePlayer(double dt) {
+    a.stun = math.max(0, a.stun - dt);
     var ix = 0.0, iy = 0.0;
-    if (b.stun <= 0 && state == PartyState.play) {
+    if (a.stun <= 0 && state == PartyState.play) {
       if (left || tLeft) ix -= 1;
       if (right || tRight) ix += 1;
       if (up || tUp) iy -= 1;
@@ -378,68 +388,85 @@ class PartyGame extends FlameGame with KeyboardEvents {
     if (il > 0) {
       ix /= il;
       iy /= il;
-      b.vx += ix * 1800 * dt;
-      b.vy += iy * 1800 * dt;
-      final v = math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      a.vx += ix * 1800 * dt;
+      a.vy += iy * 1800 * dt;
+      final v = math.sqrt(a.vx * a.vx + a.vy * a.vy);
       if (v > walkV) {
-        b.vx *= walkV / v;
-        b.vy *= walkV / v;
+        a.vx *= walkV / v;
+        a.vy *= walkV / v;
       }
-      face(b, ix, iy, dt, 14);
+      face(a, ix, iy, dt, 14);
     } else {
-      final v = math.sqrt(b.vx * b.vx + b.vy * b.vy);
-      final f = (b.stun > 0 ? 500 : 1900) * dt;
+      final v = math.sqrt(a.vx * a.vx + a.vy * a.vy);
+      final f = 1900 * dt;
       if (v <= f) {
-        b.vx = 0;
-        b.vy = 0;
+        a.vx = 0;
+        a.vy = 0;
       } else {
-        b.vx -= b.vx / v * f;
-        b.vy -= b.vy / v * f;
+        a.vx -= a.vx / v * f;
+        a.vy -= a.vy / v * f;
       }
     }
-    slide(b, b.vx * dt, b.vy * dt);
-    b.run += math.sqrt(b.vx * b.vx + b.vy * b.vy) * dt * 0.07;
-  }
-
-  /// A drifts through the crowd, and leans toward B more as time passes.
-  void updateA(double dt) {
-    a.retarget -= dt;
-    final d = Offset(a.tx - a.x, a.ty - a.y);
-    if (a.retarget <= 0 || d.distance < 12) {
-      a.retarget = rand(3, 6);
-      final lean = math.min(0.75, 0.25 + t / 90);
-      if (rng.nextDouble() < lean) {
-        final k = rand(0.2, 0.45);
-        a.tx = lerpD(a.x, b.x, k) + rand(-60, 60);
-        a.ty = lerpD(a.y, b.y, k) + rand(-60, 60);
-        if (solidAt(a.tx, a.ty, Person.r)) {
-          final p = randomFloor();
-          a.tx = p.dx;
-          a.ty = p.dy;
-        }
-      } else {
-        final p = randomFloor();
-        a.tx = p.dx;
-        a.ty = p.dy;
-      }
-    }
-    final dd = Offset(a.tx - a.x, a.ty - a.y);
-    final l = math.max(0.001, dd.distance);
-    const sp = 55.0;
-    a.vx = lerpD(a.vx, dd.dx / l * sp, math.min(1, dt * 3));
-    a.vy = lerpD(a.vy, dd.dy / l * sp, math.min(1, dt * 3));
-    if (state == PartyState.met) {
-      a.vx = 0;
-      a.vy = 0;
-    }
-    final bx = a.x, by = a.y;
     slide(a, a.vx * dt, a.vy * dt);
-    if ((a.x - bx).abs() + (a.y - by).abs() < sp * dt * 0.2) a.retarget = math.min(a.retarget, 0.3);
-    face(a, a.vx, a.vy, dt, 6);
     a.run += math.sqrt(a.vx * a.vx + a.vy * a.vy) * dt * 0.07;
   }
 
-  /// B's walking pace.
+  /// B drifts from group to group, stops to chat, and does not look around
+  /// much. While chatting B faces the group; while walking, the way ahead.
+  void updateB(double dt) {
+    if (state == PartyState.met) {
+      b.vx = 0;
+      b.vy = 0;
+      return;
+    }
+    b.retarget -= dt;
+    final d = Offset(b.tx - b.x, b.ty - b.y);
+    final chatting = d.distance < 14;
+    if (b.retarget <= 0) {
+      b.retarget = rand(5, 9);
+      // Stand at the edge of someone's group and face them.
+      final pick = guests.isEmpty ? null : guests[rng.nextInt(guests.length)];
+      final g = pick == null ? randomFloor() : Offset(pick.x, pick.y);
+      final ang = rand(0, math.pi * 2);
+      b.tx = g.dx + math.cos(ang) * 26;
+      b.ty = g.dy + math.sin(ang) * 20;
+      b.lookX = g.dx;
+      b.lookY = g.dy;
+      if (solidAt(b.tx, b.ty, Person.r)) b.retarget = 0.2;
+    }
+    final l = math.max(0.001, d.distance);
+    const sp = 50.0;
+    final want = chatting ? Offset.zero : Offset(d.dx / l * sp, d.dy / l * sp);
+    b.vx = lerpD(b.vx, want.dx, math.min(1, dt * 3));
+    b.vy = lerpD(b.vy, want.dy, math.min(1, dt * 3));
+    final bx = b.x, by = b.y;
+    slide(b, b.vx * dt, b.vy * dt);
+    if (!chatting && (b.x - bx).abs() + (b.y - by).abs() < sp * dt * 0.2) b.retarget = math.min(b.retarget, 0.4);
+    if (chatting) {
+      face(b, b.lookX - b.x, b.lookY - b.y, dt, 3);
+      if (b.bubble <= 0 && rng.nextDouble() < dt * 0.15) {
+        b.bubble = 1.8;
+        b.say = _bLines[rng.nextInt(_bLines.length)];
+      }
+    } else {
+      face(b, b.vx, b.vy, dt, 5);
+    }
+    b.run += math.sqrt(b.vx * b.vx + b.vy * b.vy) * dt * 0.07;
+  }
+
+  /// Whether A is standing where B is looking.
+  bool get inSight {
+    final dx = a.x - b.x, dy = a.y - b.y;
+    final d = math.sqrt(dx * dx + dy * dy);
+    if (d > sightRange || d < 1) return d < 1;
+    return (dx * b.fx + dy * b.fy) / d > math.cos(sightAngle);
+  }
+
+  static const double sightRange = 170, sightAngle = 0.6;
+  static const _bLines = ['...and then the drummer...', 'ha!', 'no, seriously', 'what a night', 'right?', 'one more song'];
+  static const _ignored = ['not looking your way', 'B did not see you', 'still chatting', 'get in front of B'];
+
+  /// A's walking pace.
   static const double walkV = 180;
 
   static const _nudgeLines = ['oof', 'sorry!', 'excuse you', 'oh, hi', 'whoa', 'careful'];
@@ -509,7 +536,7 @@ class PartyGame extends FlameGame with KeyboardEvents {
       if (d >= minD || d < 0.01) continue;
       final nx = dx / d, ny = dy / d;
       final overlap = minD - d;
-      final share = player ? 0.55 : 0.4;
+      final share = player ? 0.55 : 0.3;
       slide(g, nx * overlap * share, ny * overlap * share / 1.4);
       slide(s, -nx * overlap * (1 - share), -ny * overlap * (1 - share) / 1.4);
       final speedIn = s.vx * nx + s.vy * ny;
@@ -559,18 +586,32 @@ class PartyGame extends FlameGame with KeyboardEvents {
         sfx.lucky();
       }
       warm = nowWarm;
-      if (warm && rng.nextDouble() < dt * (6 - dist / 60)) {
-        addPart(PParticle(a.x + rand(-8, 8), a.y - 40, rand(-10, 10), rand(-40, -20), 1.2, rand(4, 6), const Color(0xFFFF6B8F), PPart.heart));
-        addPart(PParticle(b.x + rand(-8, 8), b.y - 40, rand(-10, 10), rand(-40, -20), 1.2, rand(4, 6), const Color(0xFFFF6B8F), PPart.heart));
+      // B only notices A standing in front, close, for a moment.
+      if (inSight) {
+        final near = 1 - (dist / sightRange).clamp(0.0, 1.0);
+        attention = math.min(1, attention + dt * (0.45 + near * 0.6));
+        if (rng.nextDouble() < dt * 10) {
+          addPart(PParticle(a.x + rand(-8, 8), a.y - 44, rand(-10, 10), rand(-40, -20), 1, rand(4, 6), const Color(0xFFFF6B8F), PPart.heart));
+        }
+      } else {
+        attention = math.max(0, attention - dt * 0.25);
+        noticeLine -= dt;
+        if (dist < 90 && noticeLine <= 0) {
+          noticeLine = 4;
+          floatText(a.x, a.y - 60, _ignored[rng.nextInt(_ignored.length)], const Color(0xFFB3A9C9), size: 12);
+        }
       }
-      if (dist < 30) {
+      if (attention >= 1) {
         state = PartyState.met;
         metT = 0;
         endTime = t;
+        a.vx = 0;
+        a.vy = 0;
         b.vx = 0;
         b.vy = 0;
         face(b, a.x - b.x, a.y - b.y, 1, 100);
         face(a, b.x - a.x, b.y - a.y, 1, 100);
+        b.bubble = 0;
         sfx.win();
       }
     }
@@ -579,12 +620,12 @@ class PartyGame extends FlameGame with KeyboardEvents {
       metT += dt;
       // Eye contact first, then a hello each.
       if (before < 0.9 && metT >= 0.9) {
-        b.say = 'hi.';
+        b.say = 'oh! hi.';
         b.bubble = 2.4;
         sfx.lucky();
       }
       if (before < 1.8 && metT >= 1.8) {
-        a.say = 'hello.';
+        a.say = 'hi.';
         a.bubble = 2.4;
         hearts((a.x + b.x) / 2, (a.y + b.y) / 2 - 40, 24, 160);
         sfx.lucky();
@@ -624,9 +665,9 @@ class PartyGame extends FlameGame with KeyboardEvents {
     } else {
       // Frame both when A is close, so you can see them coming.
       final close = Offset(a.x - b.x, a.y - b.y).distance < 360;
-      final mx = close ? (a.x + b.x * 2) / 3 : b.x, my = close ? (a.y + b.y * 2) / 3 : b.y;
-      fx = mx + b.vx * 0.3 - stageW / 2;
-      fy = my + b.vy * 0.3 - stageH / 2;
+      final mx = close ? (b.x + a.x * 2) / 3 : a.x, my = close ? (b.y + a.y * 2) / 3 : a.y;
+      fx = mx + a.vx * 0.3 - stageW / 2;
+      fy = my + a.vy * 0.3 - stageH / 2;
     }
     final k = math.min(1.0, dt * (state == PartyState.title ? 1 : 4));
     cam = Offset(lerpD(cam.dx, fx.clamp(0, worldW - stageW), k), lerpD(cam.dy, fy.clamp(-30, worldH - stageH), k));
@@ -638,10 +679,10 @@ class PartyGame extends FlameGame with KeyboardEvents {
     if (state == PartyState.play) t += dt;
     if (state == PartyState.met && metT > 3.4) endT += dt;
     if (state != PartyState.title) {
+      updatePlayer(dt);
       updateB(dt);
-      updateA(dt);
-      crowdContact(b, true, dt);
-      crowdContact(a, false, dt);
+      crowdContact(a, true, dt);
+      crowdContact(b, false, dt);
     }
     updateGuests(dt);
     updateWorld(dt);

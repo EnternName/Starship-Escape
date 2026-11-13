@@ -23,7 +23,7 @@ class MiniGame {
 final List<MiniGame> miniGames = [
   MiniGame(
     title: 'AFTER THE SHOW',
-    tagline: 'The venue is packed. B and A try to find each other through the crowd.',
+    tagline: 'The venue is packed and B is oblivious. As A, push through the crowd and get noticed.',
     view: 'TOP DOWN',
     accent: const Color(0xFFFF6B8F),
     build: (onExit) => PartyScreen(onExit: onExit),

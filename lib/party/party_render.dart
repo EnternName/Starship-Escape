@@ -23,6 +23,7 @@ extension PartyRender on PartyGame {
       }
     }
     drawSpotlights(c);
+    if (state == PartyState.play) drawGaze(c);
     if (state == PartyState.met) drawMeetGlow(c);
 
     // Row by row so that people and furniture overlap in the right order.
@@ -100,6 +101,21 @@ extension PartyRender on PartyGame {
       final r = (col >> 16) & 255, g = (col >> 8) & 255, bl = col & 255;
       rect(c, x - 160, y - 110, 320, 220, shaderPaint(radial(Offset(x, y), 150, [rgba(r, g, bl, 0.16), rgba(r, g, bl, 0)]), add: true));
     }
+  }
+
+  /// Where B is looking, as a faint wedge of light on the floor.
+  void drawGaze(Canvas c) {
+    const range = PartyGame.sightRange, half = PartyGame.sightAngle;
+    final ang = math.atan2(b.fy, b.fx);
+    final lit = inSight;
+    final path = Path()..moveTo(b.x, b.y);
+    for (var i = 0; i <= 12; i++) {
+      final t = ang - half + i / 12 * half * 2;
+      path.lineTo(b.x + math.cos(t) * range, b.y + math.sin(t) * range);
+    }
+    path.close();
+    final col = lit ? const Color(0xFFFF6B8F) : const Color(0xFF9FE3FF);
+    c.drawPath(path, shaderPaint(radial(Offset(b.x, b.y), range, [col.withValues(alpha: lit ? 0.3 : 0.14), col.withValues(alpha: 0)]), add: true));
   }
 
   void drawMeetGlow(Canvas c) {
@@ -306,6 +322,11 @@ extension PartyRender on PartyGame {
     final y = s.y - 58 + math.sin(real * 3 + (s.label == 'A' ? 1 : 0)) * 2;
     c.drawCircle(Offset(s.x, y - 6), 11, fill(rgba(14, 10, 28, 0.75)));
     c.drawCircle(Offset(s.x, y - 6), 11, stroke(s.outfit, 2));
+    // Around B's label, how close B is to noticing you.
+    if (s == b && state == PartyState.play && attention > 0) {
+      c.drawArc(Rect.fromCircle(center: Offset(s.x, y - 6), radius: 15), -math.pi / 2, math.pi * 2 * attention, false,
+          stroke(hex(0xFF6B8F), 3, cap: StrokeCap.round));
+    }
     drawText(c, s.label, s.x, y, size: 13, family: fontDisplay, color: hex(0xF4EFFC), align: TextAlign.center);
     final tri = Path()
       ..moveTo(s.x - 4, y + 5)
@@ -365,9 +386,9 @@ extension PartyRender on PartyGame {
   }
 
   // ---------- HUD and screens ----------
-  /// When A is off screen, a heart on the edge points the way.
+  /// When B is off screen, a heart on the edge points the way.
   void drawFinder(Canvas c) {
-    final sx = a.x - cam.dx, sy = a.y - 30 - cam.dy;
+    final sx = b.x - cam.dx, sy = b.y - 30 - cam.dy;
     const m = 34.0;
     if (sx > m && sx < stageW - m && sy > m && sy < stageH - m) return;
     final cx = stageW / 2, cy = stageH / 2;
@@ -377,7 +398,7 @@ extension PartyRender on PartyGame {
     final pulse = 1 + math.sin(real * 5) * 0.12;
     c.drawCircle(Offset(ex, ey), 20 * pulse, fill(rgba(14, 10, 28, 0.7)));
     _heart(c, ex, ey + 2, 11 * pulse, fill(hex(0xFF6B8F)));
-    drawText(c, 'A', ex, ey + 5, size: 10, family: fontDisplay, color: hex(0xF4EFFC), align: TextAlign.center);
+    drawText(c, 'B', ex, ey + 5, size: 10, family: fontDisplay, color: hex(0xF4EFFC), align: TextAlign.center);
     c.save();
     c.translate(ex, ey);
     c.rotate(math.atan2(dy, dx));
@@ -419,7 +440,7 @@ extension PartyRender on PartyGame {
     drawText(c, 'AFTER', mid, 250 + wob, size: 76, family: fontDisplay, color: hex(0xF4EFFC), align: TextAlign.center);
     drawText(c, 'THE SHOW', mid + 4, 330 + wob, size: 76, family: fontDisplay, color: hex(0xE0456A), align: TextAlign.center);
     drawText(c, 'THE SHOW', mid, 326 + wob, size: 76, family: fontDisplay, color: hex(0xFFB3C6), align: TextAlign.center);
-    drawText(c, 'The venue is packed. Somewhere in the crowd, A is looking too.', mid, 372, size: 17, align: TextAlign.center);
+    drawText(c, 'You are A. B is somewhere in the crowd, and has not noticed you yet.', mid, 372, size: 17, align: TextAlign.center);
     if (math.sin(real * 4) > -0.3) {
       drawText(c, 'PRESS AN ARROW KEY OR TAP TO START', mid, 430, size: 16, color: hex(0x9FE3FF), weight: FontWeight.w600, align: TextAlign.center);
     }
@@ -432,7 +453,7 @@ extension PartyRender on PartyGame {
     const mid = stageW / 2;
     drawText(c, 'A  &  B', mid, 180, size: 13, color: hex(0xFF9AB0, al), weight: FontWeight.w600, align: TextAlign.center);
     drawText(c, 'THERE YOU ARE.', mid, 250, size: 56, family: fontDisplay, color: hex(0xFFB3C6, al), align: TextAlign.center);
-    drawText(c, 'You found each other in ${fmtTime(endTime)}, through a crowd of ${guests.length}.', mid, 300,
+    drawText(c, 'B noticed you after ${fmtTime(endTime)}, in a crowd of ${guests.length}.', mid, 300,
         size: 18, color: hex(0xF4EFFC, al), align: TextAlign.center);
     drawText(c, nudges == 0 ? 'You did not nudge a single person. Smooth.' : 'People you nudged on the way: $nudges', mid, 330,
         size: 18, color: hex(0xB3A9C9, al), align: TextAlign.center);

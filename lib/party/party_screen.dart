@@ -30,7 +30,7 @@ class _PartyScreenState extends State<PartyScreen> {
           keyHint(['R', ' restart']),
           keyHint(['M', ' sound']),
         ],
-        const Text('Find A in the crowd. Push through, people move aside.', style: TextStyle(color: ashColor, fontSize: 13)),
+        const Text('You are A. Get in front of B and stay there until B notices you.', style: TextStyle(color: ashColor, fontSize: 13)),
       ],
     );
   }
