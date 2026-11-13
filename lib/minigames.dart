@@ -38,7 +38,7 @@ final List<MiniGame> miniGames = [
   ),
   MiniGame(
     title: 'STAGE FRIGHT',
-    tagline: 'A and B perform the ship\'s play. Tap on cue, or someone goes off script.',
+    tagline: 'Show night on the ship. Hit the timing bar on cue, or A and B go off script.',
     view: 'TIMING',
     accent: const Color(0xFFFF8FB8),
     build: (onExit) => StageScreen(onExit: onExit),

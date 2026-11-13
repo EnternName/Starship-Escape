@@ -13,11 +13,12 @@ import '../../shared/draw.dart';
 part 'stage_render.dart';
 part 'stage_script.dart';
 
-/// Stage Fright: a timing mini game. A (Alessandra) and B (Bogdan), two crew members
-/// on the escape ship, perform the ship's play together for the first time.
-/// A glowing cue orb bounces between them like a ping pong ball. Tap as it
-/// reaches the ring and the line lands. Miss, and someone goes off script.
-/// Nothing ends the show early.
+/// Stage Fright: a timing mini game. A (Alessandra) and B (Bogdan) are artists
+/// aboard the escape ship. In Act I, B performs while A watches from the front
+/// row; in Act II it's the other way around; in Act III they share the stage.
+/// Under the stage a timing bar runs: a square slides left and right like a
+/// ping pong ball. Press as it crosses the target line and the line lands.
+/// Miss, and someone goes off script. Nothing ends the show early.
 
 const double _sw = 960;
 const double _sh = 540;
@@ -32,7 +33,7 @@ const double winGood = 0.14;
 const double winOk = 0.21;
 
 /// Taps earlier than this before a cue are ignored, so mashing is not punished
-/// and a stray tap long before the orb arrives does nothing.
+/// and a stray tap long before the square arrives does nothing.
 const double winIgnore = 0.38;
 
 enum StagePhase { title, intro, play, outro, results }
@@ -42,13 +43,42 @@ enum Judge { perfect, good, ok, miss }
 enum Pose { stand, sit, kneel }
 
 class StageGame extends FlameGame with KeyboardEvents {
-  StageGame({this.reduceMotion = false, this.onExit});
+  StageGame({this.reduceMotion = false, this.onExit, bool? aSingsFirst}) {
+    // Who performs solo first is a coin flip: sometimes A watches oblivious B,
+    // sometimes B watches A.
+    final aFirst = aSingsFirst ?? rng.nextBool();
+    playbill = aFirst ? [acts[1], acts[0], acts[2]] : [acts[0], acts[1], acts[2]];
+  }
+
+  /// Acts in the order they play tonight.
+  late final List<ActDef> playbill;
 
   final bool reduceMotion;
   final VoidCallback? onExit;
   final Sfx sfx = Sfx();
 
   StagePhase phase = StagePhase.title;
+
+  /// Which act is on, an index into [playbill]. The duet is always last.
+  int act = 0;
+  ActDef get def => playbill[act];
+  List<Line> get script => def.lines;
+  bool get isSolo => def.solo != null;
+
+  /// The one on stage in a solo act.
+  Actor? get performer => def.solo == null ? null : def.solo == Solo.a ? actA : actB;
+
+  /// The one watching from the front row in a solo act.
+  Actor? get watcher => def.solo == null ? null : def.solo == Solo.a ? actB : actA;
+  double watcherJoy = 0, watcherFluster = 0;
+
+  /// Target line position (0..1 along the bar) for each cue.
+  late List<double> targets;
+
+  /// Bar feedback: flash strength, its judgment and where it happened.
+  double barFlash = 0, barFlashX = 0, barBump = 0;
+  Judge barJudge = Judge.good;
+  bool _barDir = true;
 
   /// Seconds since the curtain started rising.
   double t = 0;
@@ -71,12 +101,10 @@ class StageGame extends FlameGame with KeyboardEvents {
   double shake = 0, flash = 0, rumble = 0, rumbleTimer = 6;
   double hintT = 0;
   int _beat = -1;
-  int _lastBounce = -1;
   double _lastDt = 0;
 
   // Render-side state.
   double starScroll = 0;
-  final List<ui.Offset> trail = [];
   double moodR = 0, moodG = 0, moodB = 0, moodA = 0;
   final List<int> _offA = [], _offB = [];
 
@@ -89,11 +117,25 @@ class StageGame extends FlameGame with KeyboardEvents {
   void reset() {
     actA = Actor('A', tall: true, x: 330);
     actB = Actor('B', tall: false, x: 630);
+    // Each cue is the moment the square crosses that cue's target line.
+    // The next line is placed so there is always a breath between cues.
     cues = [];
-    var at = 4.2;
+    targets = [];
+    final tr = math.Random(17 + acts.indexOf(def));
+    var at = 3.0;
     for (var i = 0; i < script.length; i++) {
-      cues.add(at);
-      at += lerpD(3.6, 2.6, i / (script.length - 1));
+      final x = 0.18 + tr.nextDouble() * 0.64;
+      var tt = at + 1.9;
+      var prev = barPos(tt);
+      while (true) {
+        tt += 0.002;
+        final cur = barPos(tt);
+        if ((prev - x) * (cur - x) <= 0) break;
+        prev = cur;
+      }
+      cues.add(tt);
+      targets.add(x);
+      at = tt;
     }
     results = List.filled(script.length, null);
     next = 0;
@@ -104,12 +146,12 @@ class StageGame extends FlameGame with KeyboardEvents {
     popups.clear();
     _offA
       ..clear()
-      ..addAll(List.generate(offScriptA.length, (i) => i)..shuffle(rng));
+      ..addAll(List.generate(def.offA.length, (i) => i)..shuffle(rng));
     _offB
       ..clear()
-      ..addAll(List.generate(offScriptB.length, (i) => i)..shuffle(rng));
+      ..addAll(List.generate(def.offB.length, (i) => i)..shuffle(rng));
     _beat = -1;
-    _lastBounce = -1;
+    watcherJoy = watcherFluster = barFlash = barBump = 0;
     t = 0;
     phaseT = 0;
     hintT = 0;
@@ -133,6 +175,16 @@ class StageGame extends FlameGame with KeyboardEvents {
     }
   }
 
+  /// How well the act went, 0..1, from the judgments alone.
+  double get accuracy {
+    if (results.isEmpty) return 0;
+    var s = 0.0;
+    for (final r in results) {
+      s += r == Judge.perfect ? 1 : r == Judge.good ? 0.75 : r == Judge.ok ? 0.45 : 0;
+    }
+    return s / results.length;
+  }
+
   int get maxScore {
     var s = 0;
     for (var i = 0; i < script.length; i++) {
@@ -144,20 +196,48 @@ class StageGame extends FlameGame with KeyboardEvents {
   static double _mult(int combo) => 1 + math.min(combo, 10) * 0.1;
 
   // ---------- input ----------
-  void onStageTap() {
+  /// A tap or click. [pos] is in widget pixels, used to pick an act.
+  void onStageTap([ui.Offset? pos]) {
     sfx.init();
     switch (phase) {
       case StagePhase.title:
+        if (pos != null && size.x > 0) {
+          final p = pos / (size.x / _sw);
+          final picked = actCardAt(p);
+          if (picked != null && picked != act) {
+            selectAct(picked);
+            return;
+          }
+          if (picked == null) return;
+        }
         _raiseCurtain();
       case StagePhase.play:
         _tap();
       case StagePhase.results:
         if (phaseT > 1.2) {
-          reset();
+          selectAct((act + 1) % acts.length);
           _raiseCurtain();
         }
       default:
     }
+  }
+
+  void selectAct(int i) {
+    act = i;
+    phase = StagePhase.title;
+    phaseT = 0;
+    reset();
+  }
+
+  /// Act cards on the title curtain, in stage units.
+  static ui.Rect actCard(int i) => ui.Rect.fromLTWH(_sw / 2 - 330 + i * 225, 290, 210, 112);
+
+  int? actCardAt(ui.Offset p) {
+    for (var i = 0; i < acts.length; i++) {
+      if (actCard(i).inflate(6).contains(p)) return i;
+    }
+    if (p.dy > 410 && p.dy < 470) return act;
+    return null;
   }
 
   void _raiseCurtain() {
@@ -175,6 +255,15 @@ class StageGame extends FlameGame with KeyboardEvents {
       if (k == LogicalKeyboardKey.space || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.keyW) {
         onStageTap();
       }
+      if (phase == StagePhase.title && (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.keyA)) {
+        selectAct((act + acts.length - 1) % acts.length);
+      }
+      if (phase == StagePhase.title && (k == LogicalKeyboardKey.arrowRight || k == LogicalKeyboardKey.keyD)) {
+        selectAct((act + 1) % acts.length);
+      }
+      for (final (i, key) in [LogicalKeyboardKey.digit1, LogicalKeyboardKey.digit2, LogicalKeyboardKey.digit3].indexed) {
+        if (k == key && (phase == StagePhase.title || phase == StagePhase.results)) selectAct(i);
+      }
       if (k == LogicalKeyboardKey.keyR) {
         sfx.init();
         reset();
@@ -189,9 +278,10 @@ class StageGame extends FlameGame with KeyboardEvents {
     return KeyEventResult.handled;
   }
 
-  /// Which actor the orb is flying to for cue [i]. A serves first.
-  Actor target(int i) => i.isEven ? actB : actA;
-  Actor source(int i) => i.isEven ? actA : actB;
+  /// Who speaks on cue [i]. In the duet B speaks first and they alternate;
+  /// in a solo every cue is the performer's.
+  Actor target(int i) => performer ?? (i.isEven ? actB : actA);
+  Actor source(int i) => performer ?? (i.isEven ? actA : actB);
 
   void _tap() {
     if (next >= cues.length) return;
@@ -213,6 +303,9 @@ class StageGame extends FlameGame with KeyboardEvents {
     final i = next;
     results[i] = j;
     next++;
+    barFlash = 1;
+    barJudge = j;
+    barFlashX = targets[i];
     final who = target(i), other = identical(who, actA) ? actB : actA;
     final hand = who.hand;
     if (j == Judge.miss) {
@@ -220,7 +313,7 @@ class StageGame extends FlameGame with KeyboardEvents {
       who.bonk = 1;
       other.blush = 1.4;
       final pool = identical(who, actA) ? _offA : _offB;
-      final lines = identical(who, actA) ? offScriptA : offScriptB;
+      final lines = identical(who, actA) ? def.offA : def.offB;
       if (pool.isEmpty) pool.addAll(List.generate(lines.length, (k) => k)..shuffle(rng));
       final line = lines[pool.removeLast()];
       who.say(line, off: true);
@@ -230,6 +323,7 @@ class StageGame extends FlameGame with KeyboardEvents {
         _part(hand.dx, hand.dy, rand(-160, 160), rand(-220, -40), 0.7, rand(3, 5), hex(0xFFD166), 500, PartKind.star);
       }
       _crowd(laugh: true);
+      if (isSolo) _watcherReact(false);
       shake = reduceMotion ? 0 : 5;
       sfx.hit();
     } else {
@@ -239,7 +333,7 @@ class StageGame extends FlameGame with KeyboardEvents {
       final pts = (base * _mult(combo - 1)).round();
       score += pts;
       who.swing = 1;
-      who.say(script[i].text);
+      who.say(script[i].text, sing: def.solo == Solo.a);
       who.glow = j == Judge.perfect ? 1 : 0.6;
       final label = j == Judge.perfect ? 'PERFECT' : j == Judge.good ? 'GOOD' : 'CLOSE';
       final col = j == Judge.perfect ? hex(0xFFD166) : j == Judge.good ? hex(0x7CF29A) : hex(0x9FE3FF);
@@ -262,12 +356,29 @@ class StageGame extends FlameGame with KeyboardEvents {
         sfx.shortcut();
       }
       _crowd(laugh: false, strong: j == Judge.perfect);
+      if (isSolo && j != Judge.ok) _watcherReact(true);
     }
-    if (i == script.length - 1) {
+    if (i == script.length - 1 && !isSolo) {
       // The last line launches the ship: the stage shakes and the play ends.
       rumble = 2.5;
       _confetti(70);
       sfx.launch();
+    }
+  }
+
+  /// The front row watcher: hearts when the show is good, flustered on a slip.
+  void _watcherReact(bool good) {
+    final w = watcher;
+    if (w == null) return;
+    const wx = watchSeatX, wy = watchSeatY - 70;
+    if (good) {
+      watcherJoy = 1;
+      for (var k = 0; k < 2 + math.min(combo, 6) ~/ 2; k++) {
+        _part(wx + rand(-14, 14), wy, rand(-30, 30), rand(-90, -50), rand(1.0, 1.6), rand(5, 8), hex(0xFF5A8A), -10, PartKind.heart);
+      }
+    } else {
+      watcherFluster = 1;
+      popups.add(Popup(wx, wy - 6, identical(w, actA) ? 'oh no!' : 'whoa!', hex(0xFFB3D1), small: true));
     }
   }
 
@@ -279,9 +390,10 @@ class StageGame extends FlameGame with KeyboardEvents {
         f.cheer = rand(0.5, 0.9);
       }
     }
-    final picks = laugh ? const ['HA!', 'hah', 'ooh', '?!', 'heh', 'LOL'] : const ['bravo!', 'ooh', '♥', 'yes!', 'aww'];
+    final picks = laugh ? const ['HA!', 'hah', 'ooh', '?!', 'heh', 'LOL'] : const ['bravo!', 'ooh', 'aww', 'yes!', 'wow'];
     for (var k = 0; k < (strong || laugh ? 3 : 1); k++) {
-      final f = fans[rng.nextInt(fans.length)];
+      final side = fans.where((f) => f.x < 190 || f.x > 770).toList();
+      final f = side[rng.nextInt(side.length)];
       popups.add(Popup(f.x, f.y - 46, picks[rng.nextInt(picks.length)], laugh ? hex(0xFFE08A) : hex(0xFFB3D1), small: true));
     }
   }
@@ -310,7 +422,7 @@ class StageGame extends FlameGame with KeyboardEvents {
   // ---------- choreography ----------
   void _applyBeat(int cue) {
     Beat? b;
-    for (final x in beats) {
+    for (final x in def.beats) {
       if (x.from <= cue) b = x;
     }
     if (b == null) return;
@@ -326,10 +438,10 @@ class StageGame extends FlameGame with KeyboardEvents {
 
   /// Lighting mood for the current part of the scene.
   int get mood {
-    final c = next;
-    if (c >= 12) return 3; // finale
-    if (c >= 10) return 2; // night
-    if (c >= 8) return 1; // sunset
+    final f = next / script.length;
+    if (f >= 0.75) return 3; // finale
+    if (f >= 0.625) return 2; // night
+    if (f >= 0.5) return 1; // sunset
     return 0;
   }
 
@@ -351,19 +463,14 @@ class StageGame extends FlameGame with KeyboardEvents {
         t += dt;
         hintT += dt;
         if (next < cues.length && t > cues[next] + winOk) _judge(Judge.miss, t - cues[next]);
-        final bounceIdx = _bounceIndex();
-        if (bounceIdx != _lastBounce) {
-          _lastBounce = bounceIdx;
-          if (bounceIdx >= 0) {
-            final o = orb;
-            if (o != null) {
-              sfx.creak();
-              for (var k = 0; k < 6; k++) {
-                _part(o.dx, o.dy, rand(-60, 60), rand(-90, -20), 0.4, 2, hex(0xBFF6FF), 300, PartKind.spark);
-              }
-              for (final f in fans) {
-                f.bob = 1;
-              }
+        final dir = barPos(t + 0.001) > barPos(t);
+        if (dir != _barDir) {
+          _barDir = dir;
+          if (next < cues.length) {
+            sfx.creak();
+            barBump = 1;
+            for (final f in fans) {
+              f.bob = 1;
             }
           }
         }
@@ -374,7 +481,9 @@ class StageGame extends FlameGame with KeyboardEvents {
         if (next >= cues.length && t > cues.last + 2.4) {
           phase = StagePhase.outro;
           phaseT = 0;
-          actA.bowing = actB.bowing = true;
+          (performer ?? actA).bowing = true;
+          (performer ?? actB).bowing = true;
+          if (isSolo) _watcherReact(true);
           _throwRoses(results.where((r) => r == Judge.perfect).length ~/ 2 + 3);
           _crowd(laugh: false, strong: true);
           sfx.win();
@@ -402,13 +511,15 @@ class StageGame extends FlameGame with KeyboardEvents {
     rumble = math.max(0, rumble - dt * 0.8);
     sfx.rumble(rumble * 0.5);
     shake = math.max(0, shake - dt * 20);
+    barFlash = math.max(0, barFlash - dt * 2);
+    barBump = math.max(0, barBump - dt * 5);
+    watcherJoy = math.max(0, watcherJoy - dt * 1.2);
+    watcherFluster = math.max(0, watcherFluster - dt * 0.7);
     flash = math.max(0, flash - dt * 1.8);
 
-    final o = orb;
     for (final a in [actA, actB]) {
       final other = identical(a, actA) ? actB : actA;
-      var lookAt = other.x;
-      if (o != null && phase == StagePhase.play) lookAt = lookAt * 0.4 + o.dx * 0.6;
+      final lookAt = isSolo ? watchSeatX + (a.x < watchSeatX ? 200 : -200) : other.x;
       a.update(dt, lookAt, ready: _readyFor(a));
     }
     for (final p in parts) {
@@ -441,49 +552,21 @@ class StageGame extends FlameGame with KeyboardEvents {
     }
   }
 
-  /// How close the orb is to this actor's ring, 0 far to 1 arriving.
+  /// How close this actor's next line is, 0 far to 1 now. They draw a breath.
   double _readyFor(Actor a) {
     if (phase != StagePhase.play || next >= cues.length || !identical(target(next), a)) return 0;
-    return (1 - (cues[next] - t) / 0.7).clamp(0.0, 1.0);
+    return (1 - (cues[next] - t) / 0.7).clamp(0.0, 1.0) * 0.5;
   }
 
-  /// Index of the leg whose bounce has happened, or -1 before the first.
-  int _bounceIndex() {
-    var b = -1;
-    for (var i = 0; i < cues.length; i++) {
-      final start = i == 0 ? cues[0] - 2.2 : cues[i - 1];
-      if (t >= (start + cues[i]) / 2) b = i;
-    }
-    return b;
-  }
+  /// Seconds for the square to cross the bar once, at time [time]. It speeds
+  /// up a little as the act goes on.
+  double get barHalf => isSolo ? 1.45 : 1.3;
 
-  /// Orb position. It leaves one actor's hand, bounces once on the stage
-  /// like a ping pong ball, and arrives at the other's hand on the cue.
-  ui.Offset? get orb {
-    if (phase == StagePhase.title || phase == StagePhase.results) return null;
-    if (cues.isEmpty) return null;
-    if (phase == StagePhase.intro || t < cues[0] - 2.2) {
-      // A tosses it in her hand while the curtain rises.
-      final h = actA.hand;
-      return ui.Offset(h.dx, h.dy - (math.sin(real * 5).abs()) * 26);
-    }
-    if (t > cues.last + 0.25) return null;
-    var i = 0;
-    while (i < cues.length - 1 && t > cues[i]) {
-      i++;
-    }
-    final start = i == 0 ? cues[0] - 2.2 : cues[i - 1];
-    final end = cues[i];
-    final u = ((t - start) / (end - start)).clamp(0.0, 1.25);
-    final a = source(i).hand, b = target(i).hand;
-    final floor = lerpD(a.dy, b.dy, 0.5) + 70;
-    final mid = ui.Offset((a.dx + b.dx) / 2, math.max(floor, math.max(a.dy, b.dy) + 40));
-    if (u < 0.5) {
-      final v = u / 0.5;
-      return ui.Offset(lerpD(a.dx, mid.dx, v), lerpD(a.dy, mid.dy, v) - 50 * 4 * v * (1 - v));
-    }
-    final v = (u - 0.5) / 0.5;
-    return ui.Offset(lerpD(mid.dx, b.dx, v), lerpD(mid.dy, b.dy, v) - 120 * 4 * v * (1 - v) * (v < 1 ? 1 : 0));
+  /// Square position along the bar, 0..1, bouncing between the ends.
+  double barPos(double time) {
+    final ph = time / barHalf * (1 + time * 0.006);
+    final f = ph % 2;
+    return f < 1 ? f : 2 - f;
   }
 
   @override
@@ -531,15 +614,15 @@ class Actor {
   /// Height of the hips above the feet, which drives where the hand sits.
   double get hipH => (tall ? 50.0 : 34.0) * (1 - sit * 0.45 - kneel * 0.48);
 
-  /// Where the orb meets this actor: just in front of the chest.
+  /// Just in front of the chest, where hit effects burst from.
   ui.Offset get hand {
     final s = scale;
     final torso = tall ? 56.0 : 40.0;
     return ui.Offset(x + face * (tall ? 30 : 26) * s, feetY - (hipH + torso * 0.62) * s);
   }
 
-  void say(String text, {bool off = false}) {
-    bubble = Bubble(text, off);
+  void say(String text, {bool off = false, bool sing = false}) {
+    bubble = Bubble(text, off, sing: sing);
     talk = off ? 1.1 : math.min(2.2, 0.5 + text.length * 0.045);
   }
 
@@ -585,9 +668,12 @@ class Actor {
 }
 
 class Bubble {
-  Bubble(this.text, this.off) : life = off ? 2.4 : math.max(2.2, 0.9 + text.length * 0.06);
+  Bubble(this.text, this.off, {this.sing = false}) : life = off ? 2.4 : math.max(2.2, 0.9 + text.length * 0.06);
   final String text;
   final bool off;
+
+  /// A sung line: music notes float around it.
+  final bool sing;
   final double life;
   double age = 0;
 }
@@ -599,7 +685,11 @@ class Beat {
   final Pose ap, bp;
 }
 
-enum PartKind { spark, star, confetti, dust }
+enum PartKind { spark, star, confetti, dust, heart }
+
+/// The front row seat of whoever is watching a solo act.
+const double watchSeatX = 820;
+const double watchSeatY = 500;
 
 class Particle {
   Particle(this.x, this.y, this.vx, this.vy, this.life, this.size, this.color, this.g, this.kind) : max = life;

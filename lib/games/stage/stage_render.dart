@@ -49,8 +49,9 @@ extension StageRender on StageGame {
     drawSet(c);
     drawFloor(c);
     drawSpots(c);
-    final back = [actA, actB].where((a) => a.z > 0.6).toList();
-    final front = [actA, actB].where((a) => a.z <= 0.6).toList()..sort((a, b) => b.z.compareTo(a.z));
+    final cast = onStage;
+    final back = cast.where((a) => a.z > 0.6).toList();
+    final front = cast.where((a) => a.z <= 0.6).toList()..sort((a, b) => b.z.compareTo(a.z));
     for (final a in back) {
       drawActor(c, a);
     }
@@ -58,16 +59,17 @@ extension StageRender on StageGame {
     for (final a in front) {
       drawActor(c, a);
     }
-    drawOrb(c);
     drawParticles(c);
     drawMood(c, dt);
     drawCurtains(c);
     drawFrame(c);
     drawApron(c);
     drawAudience(c);
+    drawWatcher(c);
     drawFlyingRoses(c);
+    if (phase == StagePhase.play || phase == StagePhase.intro) drawBar(c);
     if (phase == StagePhase.play || phase == StagePhase.outro || phase == StagePhase.intro) {
-      for (final a in [actA, actB]) {
+      for (final a in cast) {
         drawBubble(c, a);
       }
       drawNameTags(c);
@@ -204,10 +206,10 @@ extension StageRender on StageGame {
     }
     rect(c, 0, 400, _sw, 14, glow(rgba(255, 200, 150, 0.04)));
     // Spike tape marks where the actors stand.
-    for (final b in beats) {
+    for (final b in def.beats) {
       for (final xz in [
-        [b.ax, b.az],
-        [b.bx, b.bz]
+        if (def.solo != Solo.b) [b.ax, b.az],
+        if (def.solo != Solo.a) [b.bx, b.bz],
       ]) {
         final y = lerpD(_floorFront, _floorBack, xz[1]) + 2;
         final p = stroke(hex(0xFFD166, 0.35), 2);
@@ -236,8 +238,11 @@ extension StageRender on StageGame {
     c.restore();
   }
 
+  /// Who is on stage: both in the duet, only the performer in a solo.
+  List<Actor> get onStage => performer == null ? [actA, actB] : [performer!];
+
   void drawSpots(ui.Canvas c) {
-    for (final a in [actA, actB]) {
+    for (final a in onStage) {
       final isA = identical(a, actA);
       final col = isA ? const [255, 220, 255] : const [255, 225, 190];
       final miss = a.bonk;
@@ -541,51 +546,142 @@ extension StageRender on StageGame {
     c.drawPath(p..close(), fill(col));
   }
 
-  // ---------- the cue orb ----------
-  void drawOrb(ui.Canvas c) {
-    // Ring at the receiving hand, with a shrinking approach ring.
-    if (phase == StagePhase.play && next < cues.length) {
+  // ---------- the timing bar ----------
+  static const double barX = 250, barW = 460, barY = 478, barH = 26;
+
+  void drawBar(ui.Canvas c) {
+    final appear = phase == StagePhase.intro ? curtain : 1.0;
+    final y = barY + (1 - appear) * 60;
+    // Backing panel.
+    rr(c, barX - 46, y - 18, barW + 92, barH + 36, 18, fill(hex(0x0E0A1C, 0.82 * appear)));
+    rr(c, barX - 46, y - 18, barW + 92, barH + 36, 18, stroke(hex(0xE8B84A, 0.5 * appear), 1.5));
+    // Track.
+    final bump = barBump * 2;
+    rr(c, barX, y, barW, barH, barH / 2,
+        shaderPaint(linear(ui.Offset(0, y), ui.Offset(0, y + barH), [hex(0x241838, appear), hex(0x120A1E, appear)])));
+    for (var k = 1; k < 20; k++) {
+      final x = barX + barW * k / 20;
+      line(c, x, y + barH - 6, x, y + barH - 3, stroke(hex(0xFFFFFF, 0.12 * appear), 1));
+    }
+    // Flash on the last judgment: green when it lands, red when it slips.
+    if (barFlash > 0) {
+      final col = barJudge == Judge.miss ? hex(0xFF4A5A) : barJudge == Judge.perfect ? hex(0x5CFF8A) : barJudge == Judge.good ? hex(0x7CF29A) : hex(0x9FE3FF);
+      rr(c, barX - 2, y - 2, barW + 4, barH + 4, barH / 2 + 2, stroke(col.withValues(alpha: barFlash), 3));
+      rr(c, barX, y, barW, barH, barH / 2, glow(col.withValues(alpha: barFlash * 0.3)));
+      final fx = barX + barW * barFlashX;
+      c.drawCircle(ui.Offset(fx, y + barH / 2), 40 * (1.4 - barFlash), stroke(col.withValues(alpha: barFlash * 0.8), 3 * barFlash + 0.5));
+    }
+    if (next < cues.length) {
+      // Target line, colored for whoever speaks next.
+      final who = target(next);
+      final isA = identical(who, actA);
+      final col = hex(isA ? _colA : _colB);
+      final tx = barX + barW * targets[next];
       final dtc = cues[next] - t;
-      if (dtc < 1.4) {
-        final h = target(next).hand;
-        final k = (dtc / 1.4).clamp(0.0, 1.0);
-        final a = (1 - k).clamp(0.0, 1.0);
-        final hot = dtc.abs() < winGood ? 1.0 : 0.0;
-        final col = identical(target(next), actA) ? _colA : _colB;
-        c.drawCircle(h, 15, stroke(hex(0xFFFFFF, 0.25 + a * 0.6), 2.5));
-        c.drawCircle(h, 15, stroke(hex(col, a * 0.8), 6)..blendMode = BlendMode.plus);
-        if (dtc > 0) c.drawCircle(h, 15 + 70 * k, stroke(hex(col, a * 0.9), 2));
-        for (var i = 0; i < 4; i++) {
-          final an = real * 3 + i * math.pi / 2;
-          c.drawArc(ui.Rect.fromCircle(center: h, radius: 21), an, 0.6, false, stroke(hex(0xFFD166, a * 0.7), 1.5));
-        }
-        if (hot > 0) c.drawCircle(h, 26, shaderPaint(radial(h, 26, [hex(0xFFFFFF, 0.4), hex(0xFFFFFF, 0)]), add: true));
+      final hot = (1 - (dtc.abs() / 0.5)).clamp(0.0, 1.0);
+      rect(c, tx - 14, y, 28, barH, glow(col.withValues(alpha: (0.12 + hot * 0.3) * appear)));
+      rr(c, tx - 2.5, y - 8, 5, barH + 16, 2.5, fill(col.withValues(alpha: appear)));
+      rr(c, tx - 2.5, y - 8, 5, barH + 16, 2.5, stroke(hex(0xFFFFFF, (0.4 + hot * 0.6) * appear), 1));
+      c.drawCircle(ui.Offset(tx, y - 14), 8, fill(col.withValues(alpha: appear)));
+      drawText(c, isA ? 'A' : 'B', tx, y - 10, size: 10, family: fontDisplay, color: hex(0x1A0F22, appear), align: TextAlign.center);
+    }
+    // The square, with a short motion trail.
+    if (cues.isNotEmpty) {
+      final now = phase == StagePhase.intro ? 0.0 : barPos(t);
+      for (var k = 5; k >= 1; k--) {
+        final px = barPos(math.max(0, t - k * 0.025));
+        final sx = barX + 6 + (barW - 12 - 16) * px;
+        if (phase != StagePhase.intro) rr(c, sx, y + 5, 16, 16, 3, glow(rgba(200, 240, 255, 0.07 * (6 - k) * appear)));
+      }
+      final sx = barX + 6 + (barW - 12 - 16) * now;
+      final sq = 16.0 + bump;
+      c.drawCircle(ui.Offset(sx + 8, y + barH / 2), 18, shaderPaint(radial(ui.Offset(sx + 8, y + barH / 2), 18, [rgba(200, 245, 255, 0.5 * appear), rgba(200, 245, 255, 0)]), add: true));
+      rr(c, sx + 8 - sq / 2, y + barH / 2 - (16 - bump) / 2, sq, 16 - bump, 4, fill(hex(0xF4FFFF, appear)));
+      rr(c, sx + 8 - sq / 2, y + barH / 2 - (16 - bump) / 2, sq, 16 - bump, 4, stroke(hex(0x9FE3FF, appear), 2));
+    }
+    // Bumpers at the ends.
+    for (final ex in const [barX - 6.0, barX + barW]) {
+      rr(c, ex, y - 3, 6, barH + 6, 3, fill(hex(0xE8B84A, appear)));
+    }
+  }
+
+  // ---------- the one watching from the front row ----------
+  void drawWatcher(ui.Canvas c) {
+    final w = watcher;
+    if (w == null) return;
+    final isA = identical(w, actA);
+    final joy = math.sin(math.min(1.0, watcherJoy) * math.pi);
+    final fl = watcherFluster;
+    final dy = -joy * 8 + math.sin(real * 1.3) * 1;
+    final dx = fl > 0 ? math.sin(real * 26) * 2 * fl : 0.0;
+    // A soft spot from the stage so you can find them.
+    c.drawCircle(const ui.Offset(watchSeatX, watchSeatY - 40), 70,
+        shaderPaint(radial(const ui.Offset(watchSeatX, watchSeatY - 40), 70, [rgba(255, 200, 220, 0.18), rgba(255, 200, 220, 0)]), add: true));
+    c.save();
+    c.translate(watchSeatX + dx, watchSeatY + dy);
+    c.scale(1.08);
+    final rim = stroke(rgba(255, 210, 170, 0.6), 2);
+    if (isA) {
+      // From behind: purple coat, red cape, long auburn hair, captain's hat.
+      rr(c, -26, -32, 52, 44, 18, fill(hex(0x3A1A62)));
+      c.drawPath(
+          ui.Path()
+            ..moveTo(-20, -30)
+            ..lineTo(20, -30)
+            ..lineTo(24, 12)
+            ..lineTo(-24, 12)
+            ..close(),
+          fill(hex(0x6A1630)));
+      c.drawCircle(const ui.Offset(0, -48), 15, fill(hex(0x7A2418)));
+      c.drawPath(
+          ui.Path()
+            ..moveTo(-14, -48)
+            ..quadraticBezierTo(-18 + math.sin(real * 2) * 2, -20, -8, -14)
+            ..lineTo(8, -14)
+            ..quadraticBezierTo(18, -20, 14, -48)
+            ..close(),
+          fill(hex(0x7A2418)));
+      c.drawArc(ui.Rect.fromCircle(center: const ui.Offset(0, -48), radius: 15), -2.6, 2.2, false, rim);
+      c.save();
+      c.translate(0, -62);
+      c.rotate(-0.1 + joy * 0.15);
+      final hat = ui.Path()
+        ..moveTo(-18, 0)
+        ..quadraticBezierTo(0, -15, 18, 0)
+        ..quadraticBezierTo(0, -5, -18, 0)
+        ..close();
+      c.drawPath(hat, fill(hex(0x1E1A3A)));
+      c.drawPath(hat, stroke(hex(0xE8B84A), 1.5));
+      c.restore();
+    } else {
+      // From behind: orange suit, glass helmet with messy hair inside, antenna.
+      rr(c, -22, -28, 44, 40, 16, fill(hex(0xC85E22)));
+      rr(c, -10, -26, 20, 26, 5, fill(hex(0x6A6A80)));
+      c.drawCircle(const ui.Offset(0, -46), 12, fill(hex(0x5A3A22)));
+      c.drawCircle(const ui.Offset(0, -46), 19, fill(hex(0x9FE3FF, 0.14)));
+      c.drawCircle(const ui.Offset(0, -46), 19, stroke(hex(0xDDF6FF, 0.75), 1.6));
+      final aw = math.sin(real * 4) * 0.25 + joy * 0.4 + (fl > 0 ? math.sin(real * 30) * 0.4 * fl : 0);
+      final tip = ui.Offset(-4 + math.sin(-0.2 + aw) * 14, -65 - math.cos(-0.2 + aw) * 14);
+      line(c, -4, -65, tip.dx, tip.dy, stroke(hex(0xB8B8C8), 1.4));
+      c.drawCircle(tip, 3, fill(hex(0xFF5A7A)));
+      c.drawCircle(tip, 7, glow(rgba(255, 90, 122, 0.3 + 0.2 * math.sin(real * 6))));
+    }
+    // Flustered: little sweat drops.
+    if (fl > 0) {
+      for (final sx in const [-24.0, 24.0]) {
+        final yy = -60 + (1 - fl) * 14;
+        c.drawPath(
+            ui.Path()
+              ..moveTo(sx, yy - 6)
+              ..quadraticBezierTo(sx + 4, yy, sx, yy + 3)
+              ..quadraticBezierTo(sx - 4, yy, sx, yy - 6),
+            fill(hex(0x9FE3FF, fl)));
       }
     }
-    final o = orb;
-    if (o == null) {
-      trail.clear();
-      return;
-    }
-    trail.add(o);
-    if (trail.length > 14) trail.removeAt(0);
-    for (var i = 0; i < trail.length - 1; i++) {
-      final k = i / trail.length;
-      line(c, trail[i].dx, trail[i].dy, trail[i + 1].dx, trail[i + 1].dy, stroke(rgba(160, 235, 255, k * 0.6), 2 + k * 7, cap: StrokeCap.round)..blendMode = BlendMode.plus);
-    }
-    // Shadow on the floor.
-    final fy = lerpD(_floorFront, _floorBack, (actA.z + actB.z) / 2) + 4;
-    final hgt = ((fy - o.dy) / 200).clamp(0.0, 1.0);
-    c.save();
-    c.translate(o.dx, fy);
-    c.scale(1, 0.3);
-    c.drawCircle(ui.Offset.zero, 9 * (1 - hgt * 0.5), fill(hex(0x000000, 0.4 * (1 - hgt * 0.6))));
     c.restore();
-    c.drawCircle(o, 28, shaderPaint(radial(o, 28, [rgba(170, 240, 255, 0.55), rgba(120, 180, 255, 0)]), add: true));
-    c.drawCircle(o, 8, fill(hex(0xF4FFFF)));
-    c.drawCircle(o, 8, stroke(hex(0x9FE3FF), 2));
-    final sp = real * 8;
-    line(c, o.dx + math.cos(sp) * 12, o.dy + math.sin(sp) * 12, o.dx - math.cos(sp) * 12, o.dy - math.sin(sp) * 12, glow(hex(0xFFFFFF, 0.6))..strokeWidth = 1.2);
+    // Name tag.
+    rr(c, watchSeatX - 12, watchSeatY + 18, 24, 16, 6, fill(hex(isA ? _colA : _colB)));
+    drawText(c, isA ? 'A' : 'B', watchSeatX, watchSeatY + 31, size: 11, family: fontDisplay, color: hex(0x1A0F22), align: TextAlign.center);
   }
 
   void drawParticles(ui.Canvas c) {
@@ -601,6 +697,18 @@ extension StageRender on StageGame {
           c.translate(p.x, p.y);
           c.rotate(p.life * 6 + p.size);
           rect(c, -p.size / 2, -p.size / 4, p.size, p.size / 2 * (0.3 + math.sin(p.life * 9).abs()), fill(p.color.withValues(alpha: math.min(1, a * 3))));
+          c.restore();
+        case PartKind.heart:
+          c.save();
+          c.translate(p.x + math.sin(p.life * 5 + p.size) * 4, p.y);
+          c.scale(p.size / 8);
+          c.drawPath(
+              ui.Path()
+                ..moveTo(0, 8)
+                ..cubicTo(-13, -1, -9, -13, 0, -6)
+                ..cubicTo(9, -13, 13, -1, 0, 8)
+                ..close(),
+              fill(p.color.withValues(alpha: math.min(1, a * 2))));
           c.restore();
         case PartKind.dust:
           c.drawCircle(ui.Offset(p.x, p.y), p.size, fill(p.color.withValues(alpha: a * 0.6)));
@@ -830,6 +938,13 @@ extension StageRender on StageGame {
       rr(c, -w / 2, -h / 2, w, h, 14, fill(hex(0xFFFDF6, alpha)));
       rr(c, -w / 2, -h / 2, w, h, 14, stroke(hex(isA ? _colA : _colB, alpha), 2.5));
     }
+    if (b.sing) {
+      for (var k = 0; k < 3; k++) {
+        final side = k.isEven ? -1.0 : 1.0;
+        final ph = (b.age * 0.8 + k * 0.33) % 1;
+        _note(c, side * (w / 2 + 14 + ph * 10), -h / 2 + 10 - ph * 34 + k * 8, hex(_colA, alpha * math.sin(ph * math.pi)), k == 1);
+      }
+    }
     c.saveLayer(null, Paint()..color = hex(0xFFFFFF, alpha));
     tp.paint(c, ui.Offset(-tp.width / 2, -tp.height / 2));
     c.restore();
@@ -840,10 +955,41 @@ extension StageRender on StageGame {
     c.restore();
   }
 
+  /// A small music note, single or beamed pair.
+  void _note(ui.Canvas c, double x, double y, ui.Color col, bool pair) {
+    final p = fill(col);
+    c.save();
+    c.translate(x, y);
+    c.rotate(-0.25);
+    c.drawOval(const ui.Rect.fromLTWH(-5, 6, 8, 6), p);
+    rect(c, 1.5, -8, 1.8, 17, p);
+    if (pair) {
+      c.drawOval(const ui.Rect.fromLTWH(7, 4, 8, 6), p);
+      rect(c, 13.5, -10, 1.8, 17, p);
+      c.drawPath(
+          ui.Path()
+            ..moveTo(1.5, -8)
+            ..lineTo(15.3, -10)
+            ..lineTo(15.3, -6)
+            ..lineTo(1.5, -4)
+            ..close(),
+          p);
+    } else {
+      c.drawPath(
+          ui.Path()
+            ..moveTo(3.3, -8)
+            ..quadraticBezierTo(10, -4, 7, 3)
+            ..quadraticBezierTo(8, -2, 3.3, -3)
+            ..close(),
+          p);
+    }
+    c.restore();
+  }
+
   void drawNameTags(ui.Canvas c) {
     final a = phase == StagePhase.intro ? 1.0 : (1 - (t - (cues.isEmpty ? 0 : cues[0])) / 2).clamp(0.0, 1.0);
     if (a <= 0) return;
-    for (final act in [actA, actB]) {
+    for (final act in onStage) {
       final isA = identical(act, actA);
       final x = act.x, y = act.feetY + 14;
       rr(c, x - 12, y - 12, 24, 18, 6, fill(hex(isA ? _colA : _colB, a)));
@@ -867,7 +1013,7 @@ extension StageRender on StageGame {
     const mx = 330.0, mw = 300.0;
     rr(c, mx, 4, mw, 48, 8, fill(hex(0x150A20)));
     rr(c, mx, 4, mw, 48, 8, stroke(hex(0xE8B84A), 2));
-    drawText(c, 'THE LAST LAUNCH', _sw / 2, 26, size: 15, family: fontDisplay, color: hex(0xFFD166), align: TextAlign.center);
+    drawText(c, def.marquee, _sw / 2, 26, size: 15, family: fontDisplay, color: hex(0xFFD166), align: TextAlign.center);
     for (var i = 0; i < cues.length; i++) {
       final x = mx + 30 + i * (mw - 60) / (cues.length - 1);
       final r = results[i];
@@ -915,27 +1061,40 @@ extension StageRender on StageGame {
     if (fillK >= 1) c.drawCircle(ui.Offset.zero, 26, shaderPaint(radial(ui.Offset.zero, 26, [hex(0xFF5A8A, 0.4), hex(0xFF5A8A, 0)]), add: true));
     c.restore();
     drawText(c, combo > 1 ? 'x$combo' : 'CHEMISTRY', _sw - 76, 34, size: combo > 1 ? 16 : 10, family: combo > 1 ? fontDisplay : fontBody, color: hex(0xFFB3D1), align: TextAlign.right, weight: FontWeight.w600);
-    if (phase == StagePhase.play && hintT < 9) {
+    if (phase == StagePhase.play && hintT < 9 && act == 0) {
       final a = (math.min(hintT, 9 - hintT) / 0.6).clamp(0.0, 1.0);
       rr(c, _sw / 2 - 190, 104, 380, 30, 15, fill(hex(0x0E0A1C, 0.7 * a)));
-      drawText(c, 'Tap or press Space as the orb meets the ring', _sw / 2, 124, size: 14, color: hex(0xF4EFFC, a), align: TextAlign.center, weight: FontWeight.w600);
+      drawText(c, 'Tap or press Space when the square hits the line', _sw / 2, 124, size: 14, color: hex(0xF4EFFC, a), align: TextAlign.center, weight: FontWeight.w600);
     }
   }
 
   void drawTitle(ui.Canvas c) {
-    final y = 200.0;
+    const y = 150.0;
     drawText(c, 'STAGE FRIGHT', _sw / 2 + 3, y + 3, size: 48, family: fontDisplay, color: hex(0x1A0F22, 0.8), align: TextAlign.center);
     drawText(c, 'STAGE FRIGHT', _sw / 2, y, size: 48, family: fontDisplay, color: hex(0xFFD166), align: TextAlign.center);
-    drawText(c, 'A and B in "The Last Launch", live aboard the escape ship', _sw / 2, y + 38, size: 16, color: hex(0xFFE9D6), align: TextAlign.center, weight: FontWeight.w600);
-    drawText(c, 'The cue orb bounces between them. Tap as it meets the ring.', _sw / 2, y + 72, size: 14, color: hex(0xF4EFFC, 0.85), align: TextAlign.center);
-    drawText(c, 'Miss, and someone goes off script.', _sw / 2, y + 94, size: 14, color: hex(0xF4EFFC, 0.85), align: TextAlign.center);
+    drawText(c, 'Show night aboard the escape ship, starring A and B', _sw / 2, y + 36, size: 16, color: hex(0xFFE9D6), align: TextAlign.center, weight: FontWeight.w600);
+    drawText(c, 'A square slides along the bar. Press when it hits the line.', _sw / 2, y + 68, size: 14, color: hex(0xF4EFFC, 0.85), align: TextAlign.center);
+    drawText(c, 'Miss, and someone goes off script.', _sw / 2, y + 90, size: 14, color: hex(0xF4EFFC, 0.85), align: TextAlign.center);
+    for (var i = 0; i < acts.length; i++) {
+      final r = StageGame.actCard(i);
+      final on = i == act;
+      final d = playbill[i];
+      final lift = on ? -4 - math.sin(real * 3).abs() * 2 : 0.0;
+      final rc = r.shift(ui.Offset(0, lift));
+      c.drawRRect(ui.RRect.fromRectAndRadius(rc, const ui.Radius.circular(12)), fill(hex(0x0E0A1C, on ? 0.9 : 0.7)));
+      c.drawRRect(ui.RRect.fromRectAndRadius(rc, const ui.Radius.circular(12)), stroke(on ? hex(0xFFD166) : hex(0xE8B84A, 0.35), on ? 2.5 : 1.2));
+      drawText(c, actNumbers[i], rc.center.dx, rc.top + 24, size: 11, color: hex(0xFF8FB8), align: TextAlign.center, weight: FontWeight.w600);
+      drawText(c, d.title, rc.center.dx, rc.top + 48, size: 17, family: fontDisplay, color: on ? hex(0xFFF1D6) : hex(0xB3A9C9), align: TextAlign.center);
+      final tp = _wrapped(d.blurb, 11.5, fontBody, on ? hex(0xF4EFFC) : hex(0xB3A9C9), 180, weight: FontWeight.w400);
+      tp.paint(c, ui.Offset(rc.center.dx - tp.width / 2, rc.top + 58));
+    }
     final a = 0.55 + 0.45 * math.sin(real * 3);
-    drawText(c, 'TAP TO RAISE THE CURTAIN', _sw / 2, y + 150, size: 16, family: fontDisplay, color: hex(0xFFFFFF, a), align: TextAlign.center);
+    drawText(c, 'TAP TO RAISE THE CURTAIN', _sw / 2, 438, size: 16, family: fontDisplay, color: hex(0xFFFFFF, a), align: TextAlign.center);
   }
 
   void drawResults(ui.Canvas c) {
     final k = _backOut((phaseT / 0.45).clamp(0.0, 1.0));
-    final ratio = maxScore == 0 ? 0.0 : score / maxScore;
+    final ratio = accuracy;
     final title = ratio >= 0.8
         ? 'STANDING OVATION'
         : ratio >= 0.55
@@ -976,7 +1135,7 @@ extension StageRender on StageGame {
       tp.paint(c, ui.Offset(-tp.width / 2, 86));
     }
     final a = phaseT > 1.2 ? 0.55 + 0.45 * math.sin(real * 3) : 0.0;
-    drawText(c, 'TAP TO PERFORM AGAIN', 0, 146, size: 13, family: fontDisplay, color: hex(0xFFFFFF, a), align: TextAlign.center);
+    drawText(c, 'TAP FOR ${actNumbers[(act + 1) % acts.length]}   ·   R TO REPLAY', 0, 146, size: 13, family: fontDisplay, color: hex(0xFFFFFF, a), align: TextAlign.center);
     c.restore();
     // Hearts drift up when the chemistry was good.
     if (ratio >= 0.55) {

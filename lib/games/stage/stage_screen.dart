@@ -22,14 +22,15 @@ class _StageScreenState extends State<StageScreen> {
     final touch = isTouchDevice;
     return StageFrame(
       onExit: widget.onExit,
-      stage: Listener(onPointerDown: (_) => game.onStageTap(), child: GameWidget(game: game)),
+      stage: Listener(onPointerDown: (e) => game.onStageTap(e.localPosition), child: GameWidget(game: game)),
       caption: [
         if (!touch) ...[
-          keyHint(['Space', ', ', 'click', ' or ', 'tap', ' hit the cue']),
+          keyHint(['Space', ', ', 'click', ' or ', 'tap', ' hit the line']),
+          keyHint(['← →', ' pick an act']),
           keyHint(['R', ' restart']),
           keyHint(['M', ' sound']),
         ],
-        const Text('Tap as the orb meets the ring. Misses go off script.', style: TextStyle(color: ashColor, fontSize: 13)),
+        const Text('Press when the square hits the line. Misses go off script.', style: TextStyle(color: ashColor, fontSize: 13)),
       ],
     );
   }
