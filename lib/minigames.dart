@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'bench/bench_screen.dart';
 import 'game/runner_screen.dart';
 import 'street/street_screen.dart';
 
@@ -34,5 +35,12 @@ final List<MiniGame> miniGames = [
     view: 'TOP DOWN',
     accent: const Color(0xFF9FE3FF),
     build: (onExit) => StreetScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'KEEP WARM',
+    tagline: 'A and B wait on a frozen launch pad. Hug and kiss to stay cozy, then board on time.',
+    view: 'TAP',
+    accent: const Color(0xFFFF5C8A),
+    build: (onExit) => BenchScreen(onExit: onExit),
   ),
 ];
