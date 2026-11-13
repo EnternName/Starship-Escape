@@ -561,7 +561,7 @@ class StreetGame extends FlameGame with KeyboardEvents {
     }
     if (play && p.stun <= 0 && p.safe <= 0) {
       final c = (p.x / tile).floor(), r = (p.y / tile).floor();
-      if (at(c, r) == '~') knock(p.x - p.vx, p.y - p.vy, 'HOT HOT HOT!');
+      if (at(c, r) == '~') knock(p.x + p.vx, p.y + p.vy, 'HOT HOT HOT!');
     }
     // Cracked walls hint with dust and a creak when you are near.
     hintTimer -= dt;
