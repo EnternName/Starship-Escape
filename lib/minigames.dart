@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'game/runner_screen.dart';
+import 'games/stage/stage_screen.dart';
 import 'street/street_screen.dart';
 
 /// One entry in the mini game menu.
@@ -34,5 +35,12 @@ final List<MiniGame> miniGames = [
     view: 'TOP DOWN',
     accent: const Color(0xFF9FE3FF),
     build: (onExit) => StreetScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'STAGE FRIGHT',
+    tagline: 'A and B perform the ship\'s play. Tap on cue, or someone goes off script.',
+    view: 'TIMING',
+    accent: const Color(0xFFFF8FB8),
+    build: (onExit) => StageScreen(onExit: onExit),
   ),
 ];
