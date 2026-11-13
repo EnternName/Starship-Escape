@@ -2,23 +2,23 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
 import '../shared/stage_frame.dart';
-import 'street_game.dart';
+import 'party_game.dart';
 
-/// Street Escape: the top-down mini game.
-class StreetScreen extends StatefulWidget {
-  const StreetScreen({super.key, required this.onExit});
+/// After the Show: the top-down crowd mini game.
+class PartyScreen extends StatefulWidget {
+  const PartyScreen({super.key, required this.onExit});
   final VoidCallback onExit;
 
   @override
-  State<StreetScreen> createState() => _StreetScreenState();
+  State<PartyScreen> createState() => _PartyScreenState();
 }
 
-class _StreetScreenState extends State<StreetScreen> {
-  StreetGame? _game;
+class _PartyScreenState extends State<PartyScreen> {
+  PartyGame? _game;
 
   @override
   Widget build(BuildContext context) {
-    final game = _game ??= StreetGame(reduceMotion: MediaQuery.of(context).disableAnimations, onExit: widget.onExit);
+    final game = _game ??= PartyGame(reduceMotion: MediaQuery.of(context).disableAnimations, onExit: widget.onExit);
     final touch = isTouchDevice;
     return StageFrame(
       onExit: widget.onExit,
@@ -30,7 +30,7 @@ class _StreetScreenState extends State<StreetScreen> {
           keyHint(['R', ' restart']),
           keyHint(['M', ' sound']),
         ],
-        const Text('Reach the launch pad. Cracked walls give way if you push.', style: TextStyle(color: ashColor, fontSize: 13)),
+        const Text('You are A. Get in front of B and stay there until B notices you.', style: TextStyle(color: ashColor, fontSize: 13)),
       ],
     );
   }
@@ -38,7 +38,7 @@ class _StreetScreenState extends State<StreetScreen> {
 
 class _DPad extends StatelessWidget {
   const _DPad({required this.game});
-  final StreetGame game;
+  final PartyGame game;
 
   @override
   Widget build(BuildContext context) {

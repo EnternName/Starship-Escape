@@ -93,12 +93,12 @@ class _HubState extends State<Hub> with SingleTickerProviderStateMixin {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('EARTH  ·  FINAL EVACUATION',
+                        const Text('A  &  B  ·  A STORY IN MINI GAMES',
                             style: TextStyle(color: Color(0xFFFF9A6A), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
                         const SizedBox(height: 8),
                         _Title(time: _time, still: still, size: narrow ? 40 : 64),
                         const SizedBox(height: 6),
-                        const Text('Pick a way out.', style: TextStyle(color: ashColor, fontSize: 17)),
+                        const Text('How they met, one moment at a time.', style: TextStyle(color: ashColor, fontSize: 17)),
                         const SizedBox(height: 28),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 960),
@@ -194,7 +194,7 @@ class _GameCard extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: RepaintBoundary(child: CustomPaint(painter: _PreviewPainter(index, time, game.accent))),
+                  child: RepaintBoundary(child: CustomPaint(painter: _PreviewPainter(game.title, time, game.accent))),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
@@ -278,8 +278,10 @@ class _SkyPainter extends CustomPainter {
 
 /// A small animated picture of each game for its card.
 class _PreviewPainter extends CustomPainter {
-  _PreviewPainter(this.kind, this.time, this.accent) : super(repaint: time);
-  final int kind;
+  _PreviewPainter(this.title, this.time, this.accent) : super(repaint: time);
+
+  /// Picks the picture by the game's title, so new games can add their own.
+  final String title;
   final ValueNotifier<double> time;
   final Color accent;
 
@@ -287,7 +289,7 @@ class _PreviewPainter extends CustomPainter {
   void paint(Canvas c, Size s) {
     final t = time.value;
     final full = Offset.zero & s;
-    if (kind == 0) {
+    if (title == 'ROOFTOP RUN') {
       c.drawRect(full, Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
           colors: [Color(0xFF1E0F33), Color(0xFF6A2238)]).createShader(full));
       // Rooftops scrolling past.
@@ -312,42 +314,103 @@ class _PreviewPainter extends CustomPainter {
       c.drawCircle(Offset(px, py - 28), 7, Paint()..color = const Color(0xFFF7F3FF));
       c.drawLine(Offset(px - 4, py - 18), Offset(px - 18, py - 14 + math.sin(t * 9) * 3),
           Paint()..color = const Color(0xFFFF5B3A)..strokeWidth = 3..strokeCap = StrokeCap.round);
+    } else if (title == 'AFTER THE SHOW') {
+      _party(c, s, t);
+    } else if (title.contains('WARM')) {
+      _bench(c, s, t);
+    } else if (title.contains('STAGE')) {
+      _stage(c, s, t);
     } else {
-      c.drawRect(full, Paint()..color = const Color(0xFF241A36));
-      // City blocks from above.
-      final cell = s.width / 12;
-      for (var r = 0; r < 8; r++) {
-        for (var col = 0; col < 12; col++) {
-          final solid = (r % 3 == 1 && col % 4 != 0) || (col % 4 == 2 && r % 3 != 0 && r != 6);
-          if (!solid) continue;
-          c.drawRect(Rect.fromLTWH(col * cell, r * cell, cell, cell), Paint()..color = const Color(0xFF1E1430));
-          c.drawRect(Rect.fromLTWH(col * cell, r * cell - cell * 0.6, cell, cell), Paint()..color = const Color(0xFF3A2A50));
-        }
-      }
-      // Walker following a looping path, with a trail.
-      Offset at(double k) {
-        final a = k * math.pi * 2;
-        return Offset(s.width * (0.5 + math.cos(a) * 0.38), s.height * (0.55 + math.sin(a * 2) * 0.28));
-      }
-
-      for (var j = 0; j < 14; j++) {
-        final p = at((t * 0.08 - j * 0.006) % 1);
-        c.drawCircle(p, 4 - j * 0.25, Paint()..color = Color.fromRGBO(255, 91, 58, 0.5 * (1 - j / 14)));
-      }
-      final p = at((t * 0.08) % 1);
-      c.drawCircle(p, 8, Paint()..color = const Color(0xFFF7F3FF));
-      c.drawCircle(p.translate(0, -1), 4, Paint()..color = const Color(0xFFFFB36B));
-      // Pad beacon.
-      final pad = Offset(s.width * 0.88, s.height * 0.2);
-      final pulse = (t * 1.2) % 1;
-      c.drawCircle(pad, 12 + pulse * 24, Paint()..color = accent.withValues(alpha: 0.6 * (1 - pulse))..style = PaintingStyle.stroke..strokeWidth = 2);
-      c.drawCircle(pad, 10, Paint()..color = accent);
-      // A falling rock shadow.
-      final k = (t * 0.6) % 1;
-      final rp = Offset(s.width * 0.3, s.height * 0.3);
-      c.drawOval(Rect.fromCenter(center: rp, width: 10 + k * 18, height: 6 + k * 9), Paint()..color = Color.fromRGBO(255, 70, 40, 0.2 + k * 0.5));
+      c.drawRect(full, Paint()..shader = RadialGradient(colors: [accent.withValues(alpha: 0.5), const Color(0xFF140C22)]).createShader(full));
     }
     c.drawRect(full, Paint()..shader = RadialGradient(colors: [const Color(0x00000000), const Color(0xAA080410)], stops: const [0.55, 1]).createShader(full));
+  }
+
+  /// A crowd from above, with A and B drifting toward each other.
+  void _party(Canvas c, Size s, double t) {
+    final full = Offset.zero & s;
+    c.drawRect(full, Paint()..color = const Color(0xFF1E1530));
+    for (var i = 0; i < 6; i++) {
+      for (var j = 0; j < 3; j++) {
+        final h = (i * 50 + j * 70 + t * 40) % 360;
+        final beat = math.sin(t * 4 + i + j) * 0.5 + 0.5;
+        c.drawRect(Rect.fromLTWH(s.width * 0.3 + i * s.width * 0.067, s.height * 0.35 + j * s.width * 0.067, s.width * 0.063, s.width * 0.063),
+            Paint()..color = HSLColor.fromAHSL(1, h, 0.6, 0.15 + beat * 0.15).toColor());
+      }
+    }
+    final r = math.Random(3);
+    const outfits = [0xFFF2C14E, 0xFF7AD0C1, 0xFFB58BE8, 0xFFF08A5D, 0xFF5F8DE0, 0xFFA7D86B, 0xFFD9D1EA];
+    for (var i = 0; i < 46; i++) {
+      final x = r.nextDouble() * s.width, y = r.nextDouble() * s.height;
+      final sway = math.sin(t * 2 + i) * 1.5;
+      c.drawCircle(Offset(x + sway, y), 6, Paint()..color = Color(outfits[i % outfits.length]));
+      c.drawCircle(Offset(x + sway, y - 6), 3.5, Paint()..color = const Color(0xFF3A2A30));
+    }
+    final k = (math.sin(t * 0.6) * 0.5 + 0.5) * 0.8;
+    final pa = Offset.lerp(Offset(s.width * 0.85, s.height * 0.25), Offset(s.width * 0.55, s.height * 0.5), k)!;
+    final pb = Offset.lerp(Offset(s.width * 0.15, s.height * 0.8), Offset(s.width * 0.45, s.height * 0.55), k)!;
+    for (final (p, col, l) in [(pa, const Color(0xFFE0456A), 'A'), (pb, const Color(0xFF2E9C9C), 'B')]) {
+      c.drawCircle(p, 22, Paint()..color = col.withValues(alpha: 0.25)..blendMode = BlendMode.plus);
+      c.drawCircle(p, 8, Paint()..color = col);
+      final tp = TextPainter(text: TextSpan(text: l, style: const TextStyle(fontFamily: 'Bungee', fontSize: 12, color: inkColor)), textDirection: TextDirection.ltr)..layout();
+      tp.paint(c, p - Offset(tp.width / 2, 30));
+    }
+    if (k > 0.7) {
+      final mid = Offset.lerp(pa, pb, 0.5)!;
+      c.drawCircle(mid.translate(0, -10 - (t * 20) % 20), 4, Paint()..color = const Color(0xFFFF6B8F));
+    }
+  }
+
+  /// A red curtain with a gold bar and a spotlight that swells to a beat.
+  void _stage(Canvas c, Size s, double t) {
+    final full = Offset.zero & s;
+    c.drawRect(full, Paint()..color = const Color(0xFF1A0A14));
+    final beat = math.pow(math.sin(t * 3).abs(), 6).toDouble();
+    final spot = Offset(s.width / 2, s.height * 0.62);
+    c.drawCircle(spot, s.height * (0.35 + beat * 0.08), Paint()..shader = RadialGradient(colors: [Color.fromRGBO(255, 230, 190, 0.45 + beat * 0.3), const Color(0x00FFE6BE)])
+        .createShader(Rect.fromCircle(center: spot, radius: s.height * 0.45))..blendMode = BlendMode.plus);
+    final open = 0.18 + math.sin(t * 0.5).abs() * 0.08;
+    for (final side in [0, 1]) {
+      final w = s.width * (0.5 - open);
+      final x0 = side == 0 ? 0.0 : s.width - w;
+      for (var i = 0; i < 7; i++) {
+        final fx = x0 + i * w / 7;
+        c.drawRect(Rect.fromLTWH(fx, 0, w / 7 + 1, s.height),
+            Paint()..shader = LinearGradient(colors: [const Color(0xFF8C1A2A), const Color(0xFFC8303E), const Color(0xFF7A1424)])
+                .createShader(Rect.fromLTWH(fx, 0, w / 7, s.height)));
+      }
+    }
+    c.drawRect(Rect.fromLTWH(0, 0, s.width, s.height * 0.1), Paint()..color = const Color(0xFF7A1424));
+    c.drawRect(Rect.fromLTWH(0, s.height * 0.1, s.width, 5), Paint()..color = const Color(0xFFE8B84A));
+    c.drawRect(Rect.fromLTWH(0, s.height * 0.86, s.width, s.height * 0.14), Paint()..color = const Color(0xFF3A2414));
+  }
+
+  /// Two figures on a bench under a lamp, with snow and a pink glow.
+  void _bench(Canvas c, Size s, double t) {
+    final full = Offset.zero & s;
+    c.drawRect(full, Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+        colors: [Color(0xFF140C2A), Color(0xFF2A1640)]).createShader(full));
+    final lamp = Offset(s.width * 0.68, s.height * 0.22);
+    c.drawCircle(lamp, s.height * 0.6, Paint()..shader = RadialGradient(colors: [const Color(0x55FF5C8A), const Color(0x00FF5C8A)])
+        .createShader(Rect.fromCircle(center: lamp, radius: s.height * 0.6))..blendMode = BlendMode.plus);
+    c.drawLine(lamp, Offset(lamp.dx, s.height * 0.85), Paint()..color = const Color(0xFF3A2D4E)..strokeWidth = 4);
+    c.drawCircle(lamp, 6, Paint()..color = const Color(0xFFFFE3B0));
+    final by = s.height * 0.72;
+    c.drawRect(Rect.fromLTWH(s.width * 0.25, by, s.width * 0.36, 6), Paint()..color = const Color(0xFF6D4A3A));
+    c.drawRect(Rect.fromLTWH(s.width * 0.25, by - 18, s.width * 0.36, 5), Paint()..color = const Color(0xFF6D4A3A));
+    for (final (dx, col) in [(0.37, const Color(0xFF2E9C9C)), (0.49, const Color(0xFFE0456A))]) {
+      final x = s.width * dx;
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x - 8, by - 26, 16, 26), const Radius.circular(5)), Paint()..color = col);
+      c.drawCircle(Offset(x, by - 33), 7, Paint()..color = const Color(0xFFF0C8A8));
+    }
+    final beat = math.sin(t * 3).abs();
+    c.drawCircle(Offset(s.width * 0.43, by - 52 - beat * 4), 4 + beat, Paint()..color = const Color(0xFFFF5C8A));
+    final r = math.Random(11);
+    for (var i = 0; i < 40; i++) {
+      final x = (r.nextDouble() * s.width + math.sin(t + i) * 6) % s.width;
+      final y = (r.nextDouble() * s.height + t * (10 + i % 5 * 4)) % s.height;
+      c.drawCircle(Offset(x, y), 1 + (i % 3) * 0.5, Paint()..color = const Color(0xCCFFFFFF));
+    }
   }
 
   @override

@@ -2,7 +2,14 @@
 
 Earth is collapsing. Rockets are leaving one by one, and you have to catch one before the last rocket leaves.
 
-A 2D platformer built with Flutter and the [Flame](https://flame-engine.org) engine. It runs in the browser as a Flutter web build.
+A story in mini games about how A and B met, built with Flutter and the [Flame](https://flame-engine.org) engine. It runs in the browser as a Flutter web build.
+
+## Mini games
+
+- **After the Show** (top down): the venue is packed after the show. You are A. B is somewhere in the crowd, chatting and oblivious. Push through the people, get in front of B and stay there until B notices you. Nothing ends the round.
+- **Rooftop Run** (side view): the original platformer, described below.
+
+A new game is one entry in `lib/minigames.dart`: a screen widget that takes `onExit`, usually wrapped in `StageFrame` from `lib/shared/stage_frame.dart`.
 
 ## Play locally
 

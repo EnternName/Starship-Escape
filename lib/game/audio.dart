@@ -3,6 +3,11 @@ import 'package:flame_audio/flame_audio.dart';
 /// Sound effects. Browsers only allow audio after the player interacts,
 /// so nothing loads or plays until [init] is called from an input handler.
 class Sfx {
+  Sfx({this.ambient = true});
+
+  /// Whether the background rumble plays.
+  final bool ambient;
+
   static const _files = [
     'jump.wav', 'land.wav', 'hit.wav', 'boom.wav', 'creak.wav', 'lucky.wav', 'shortcut.wav',
     'launch.wav', 'win.wav', 'lose.wav', 'debris.wav', 'rumble.wav',
@@ -18,7 +23,7 @@ class Sfx {
     _started = true;
     try {
       await FlameAudio.audioCache.loadAll(_files);
-      _rumble = await FlameAudio.loop('rumble.wav', volume: muted ? 0 : 0.15);
+      if (ambient) _rumble = await FlameAudio.loop('rumble.wav', volume: muted ? 0 : 0.15);
     } catch (_) {
       // Audio is optional; the game plays fine without it.
     }
