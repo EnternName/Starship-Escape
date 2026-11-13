@@ -1,60 +1,5 @@
 part of 'starship_game.dart';
 
-// ---------- drawing helpers ----------
-const _display = 'Bungee';
-const _body = 'ChakraPetch';
-
-Color hex(int v, [double a = 1]) => Color(0xFF000000 | v).withValues(alpha: a.clamp(0.0, 1.0));
-Color rgba(int r, int g, int b, double a) => Color.fromRGBO(r, g, b, a.clamp(0.0, 1.0));
-Paint fill(Color c) => Paint()..color = c;
-Paint glow(Color c) => Paint()
-  ..color = c
-  ..blendMode = BlendMode.plus;
-Paint stroke(Color c, double w, {StrokeCap cap = StrokeCap.butt}) => Paint()
-  ..color = c
-  ..style = PaintingStyle.stroke
-  ..strokeWidth = w
-  ..strokeCap = cap
-  ..strokeJoin = StrokeJoin.round;
-Paint shaderPaint(Shader s, {bool add = false}) => Paint()
-  ..shader = s
-  ..blendMode = add ? BlendMode.plus : BlendMode.srcOver;
-Shader linear(Offset a, Offset b, List<Color> colors, [List<double>? stops]) => ui.Gradient.linear(a, b, colors, stops);
-Shader radial(Offset c, double r, List<Color> colors, [List<double>? stops]) => ui.Gradient.radial(c, r, colors, stops);
-
-void rr(Canvas c, double x, double y, double w, double h, double r, Paint p) =>
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)), p);
-void rect(Canvas c, double x, double y, double w, double h, Paint p) => c.drawRect(Rect.fromLTWH(x, y, w, h), p);
-void line(Canvas c, double x0, double y0, double x1, double y1, Paint p) => c.drawLine(Offset(x0, y0), Offset(x1, y1), p);
-
-final Map<String, TextPainter> _textCache = {};
-
-/// Draws text with its baseline at [y], like canvas fillText.
-void drawText(Canvas c, String s, double x, double y,
-    {double size = 14, Color color = const Color(0xFFF4EFFC), String family = _body, FontWeight weight = FontWeight.w400, TextAlign align = TextAlign.left}) {
-  final key = '$s|$size|${color.toARGB32()}|$family|${weight.value}';
-  var tp = _textCache[key];
-  if (tp == null) {
-    if (_textCache.length > 400) _textCache.clear();
-    tp = TextPainter(
-      text: TextSpan(text: s, style: TextStyle(fontFamily: family, fontSize: size, color: color, fontWeight: weight)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    _textCache[key] = tp;
-  }
-  final base = tp.computeDistanceToActualBaseline(TextBaseline.alphabetic);
-  final dx = align == TextAlign.center ? x - tp.width / 2 : align == TextAlign.right ? x - tp.width : x;
-  tp.paint(c, Offset(dx, y - base));
-}
-
-double textWidth(String s, double size, String family, FontWeight weight) {
-  final tp = TextPainter(
-    text: TextSpan(text: s, style: TextStyle(fontFamily: family, fontSize: size, fontWeight: weight)),
-    textDirection: TextDirection.ltr,
-  )..layout();
-  return tp.width;
-}
-
 // ---------- background data ----------
 final _bgRand = math.Random(42);
 final List<Star> _stars = List.generate(
@@ -127,8 +72,8 @@ extension Render on StarshipGame {
     drawParticles(c);
     for (final tx in texts) {
       final a = (tx.life / tx.max * 2).clamp(0.0, 1.0);
-      drawText(c, tx.text, tx.x + 2, tx.y + 2, size: 16, family: _display, color: hex(0x1A0F22, a), align: TextAlign.center);
-      drawText(c, tx.text, tx.x, tx.y, size: 16, family: _display, color: tx.color.withValues(alpha: a), align: TextAlign.center);
+      drawText(c, tx.text, tx.x + 2, tx.y + 2, size: 16, family: fontDisplay, color: hex(0x1A0F22, a), align: TextAlign.center);
+      drawText(c, tx.text, tx.x, tx.y, size: 16, family: fontDisplay, color: tx.color.withValues(alpha: a), align: TextAlign.center);
     }
     c.restore();
 
@@ -420,7 +365,7 @@ extension Render on StarshipGame {
     c.save();
     c.translate(-14, -200);
     c.rotate(-math.pi / 2);
-    drawText(c, 'H2O', 0, 4, size: 10, family: _display, color: rgba(255, 220, 180, 0.7), align: TextAlign.center);
+    drawText(c, 'H2O', 0, 4, size: 10, family: fontDisplay, color: rgba(255, 220, 180, 0.7), align: TextAlign.center);
     c.restore();
     if (!tower.falling) {
       c.drawPath(
@@ -470,7 +415,7 @@ extension Render on StarshipGame {
     for (final tr in triggers) {
       if (tr.fired) continue;
       // A broken light that flickers in an uneven rhythm.
-      final on = math.sin(real * 23 + tr.zone.x) * math.sin(real * 7.3) > 0.1 || _rng.nextDouble() < 0.05;
+      final on = math.sin(real * 23 + tr.zone.x) * math.sin(real * 7.3) > 0.1 || rng.nextDouble() < 0.05;
       if (!on) continue;
       rect(c, tr.lamp.dx - 46, tr.lamp.dy - 46, 92, 92,
           shaderPaint(radial(tr.lamp, 46, [rgba(190, 235, 255, 0.65), rgba(120, 190, 255, 0)]), add: true));
@@ -529,7 +474,7 @@ extension Render on StarshipGame {
     c.save();
     if (r.phase == RocketPhase.launch && r.t < 1.5) c.translate(math.sin(real * 70) * 1.5, 0);
     if (r.phase == RocketPhase.launch) {
-      final fl = 60 + _rng.nextDouble() * 40 + r.t * 30;
+      final fl = 60 + rng.nextDouble() * 40 + r.t * 30;
       c.drawPath(
           Path()
             ..moveTo(x - 14, by)
@@ -568,7 +513,7 @@ extension Render on StarshipGame {
       c.drawCircle(Offset(x, wy), 7, fill(hex(0x2A2140)));
       c.drawCircle(Offset(x, wy), 5, fill(r.withPlayer && wy == by - 100 ? hex(0xFFD36B) : hex(0x7CD6FF)));
     }
-    drawText(c, 'ARK-${r.id}', x, by - 40, size: 9, family: _display, color: hex(0x2A2140), align: TextAlign.center);
+    drawText(c, 'ARK-${r.id}', x, by - 40, size: 9, family: fontDisplay, color: hex(0x2A2140), align: TextAlign.center);
     if (r.phase == RocketPhase.wait) rr(c, x - 9, by - 62, 18, 34, 4, stroke(hex(0x4A4060), 1.5));
     c.restore();
   }
@@ -728,17 +673,17 @@ extension Render on StarshipGame {
     if (r != null) {
       final left = r.launchT - t;
       final urgent = left < 5 && math.sin(real * 14) > 0;
-      drawText(c, fmtTime(left), 30, 70, size: 28, family: _display, color: urgent ? hex(0xFF5A3A) : hex(0xFFD36B));
+      drawText(c, fmtTime(left), 30, 70, size: 28, family: fontDisplay, color: urgent ? hex(0xFF5A3A) : hex(0xFFD36B));
     } else {
-      drawText(c, 'NONE', 30, 68, size: 20, family: _display, color: hex(0xFF5A3A));
+      drawText(c, 'NONE', 30, 68, size: 20, family: fontDisplay, color: hex(0xFF5A3A));
     }
-    drawText(c, r != null ? '?' : '0', 130, 70, size: 28, family: _display);
+    drawText(c, r != null ? '?' : '0', 130, 70, size: 28, family: fontDisplay);
     // Pad direction and distance.
     if (r != null && p.boarded == null) {
       final dx = r.x - (p.x + p.w / 2);
       final m = (dx.abs() / 20).round();
       final txt = m < 4 ? 'BOARD NOW' : (dx > 0 ? 'PAD $m m  ▶' : '◀  PAD $m m');
-      final tw = textWidth(txt, 14, _body, FontWeight.w600);
+      final tw = textWidth(txt, 14, fontBody, FontWeight.w600);
       rr(c, stageW - 32 - tw, 14, tw + 26, 30, 8, fill(rgba(14, 10, 28, 0.6)));
       drawText(c, txt, stageW - 19, 34, size: 14, color: hex(0x9FE3FF), weight: FontWeight.w600, align: TextAlign.right);
     }
@@ -752,7 +697,7 @@ extension Render on StarshipGame {
     final a = math.min(1.0, math.min(b.t * 4, (b.dur - b.t) * 3)).clamp(0.0, 1.0);
     final double y = 150 - (1 - math.min(1.0, b.t * 4)) * 20;
     rect(c, 0, y - 40, stageW, 70, fill(rgba(14, 10, 28, 0.55 * a)));
-    drawText(c, b.title, stageW / 2, y, size: 30, family: _display, color: hex(0xFFD36B, a), align: TextAlign.center);
+    drawText(c, b.title, stageW / 2, y, size: 30, family: fontDisplay, color: hex(0xFFD36B, a), align: TextAlign.center);
     drawText(c, b.sub, stageW / 2, y + 22, size: 15, color: hex(0xF4EFFC, a), align: TextAlign.center);
   }
 
@@ -762,10 +707,10 @@ extension Render on StarshipGame {
     final wob = reduceMotion ? 0.0 : math.sin(real * 2) * 3;
     const mid = stageW / 2;
     drawText(c, 'EARTH  ·  FINAL EVACUATION', mid, 170, size: 13, color: hex(0xFF9A6A), weight: FontWeight.w600, align: TextAlign.center);
-    drawText(c, 'STARSHIP', mid + 4, 254 + wob, size: 76, family: _display, color: hex(0xFF5B3A), align: TextAlign.center);
-    drawText(c, 'STARSHIP', mid, 250 + wob, size: 76, family: _display, color: hex(0xF4EFFC), align: TextAlign.center);
-    drawText(c, 'ESCAPE', mid + 4, 330 + wob, size: 76, family: _display, color: hex(0xFF5B3A), align: TextAlign.center);
-    drawText(c, 'ESCAPE', mid, 326 + wob, size: 76, family: _display, color: hex(0xFFD36B), align: TextAlign.center);
+    drawText(c, 'STARSHIP', mid + 4, 254 + wob, size: 76, family: fontDisplay, color: hex(0xFF5B3A), align: TextAlign.center);
+    drawText(c, 'STARSHIP', mid, 250 + wob, size: 76, family: fontDisplay, color: hex(0xF4EFFC), align: TextAlign.center);
+    drawText(c, 'ESCAPE', mid + 4, 330 + wob, size: 76, family: fontDisplay, color: hex(0xFF5B3A), align: TextAlign.center);
+    drawText(c, 'ESCAPE', mid, 326 + wob, size: 76, family: fontDisplay, color: hex(0xFFD36B), align: TextAlign.center);
     drawText(c, 'The rockets are leaving one by one. Nobody knows how many are left.', mid, 372, size: 17, align: TextAlign.center);
     if (math.sin(real * 4) > -0.3) {
       drawText(c, 'PRESS SPACE OR TAP TO RUN', mid, 430, size: 16, color: hex(0x9FE3FF), weight: FontWeight.w600, align: TextAlign.center);
@@ -780,7 +725,7 @@ extension Render on StarshipGame {
     drawText(c, won ? 'LIFTOFF CONFIRMED' : 'EVACUATION OVER', mid, 180,
         size: 13, color: (won ? hex(0x9FE3FF) : hex(0xFF9A6A)).withValues(alpha: a), weight: FontWeight.w600, align: TextAlign.center);
     drawText(c, won ? 'YOU MADE IT' : 'LEFT BEHIND', mid, 250,
-        size: 56, family: _display, color: (won ? hex(0xFFD36B) : hex(0xFF5B3A)).withValues(alpha: a), align: TextAlign.center);
+        size: 56, family: fontDisplay, color: (won ? hex(0xFFD36B) : hex(0xFF5B3A)).withValues(alpha: a), align: TextAlign.center);
     final total = rockets.length;
     final line1 = won
         ? 'You escaped on rocket $wonRocket of $total, ${fmtTime(endTime)} after the ground started to go.'

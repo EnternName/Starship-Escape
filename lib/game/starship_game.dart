@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 
+import '../shared/draw.dart';
 import 'audio.dart';
 
 part 'model.dart';
@@ -20,22 +20,13 @@ const double ground = 460;
 
 enum GameState { title, play, won, lost }
 
-final math.Random _rng = math.Random();
-double rand(double a, double b) => a + _rng.nextDouble() * (b - a);
-double lerpD(double a, double b, double t) => a + (b - a) * t;
-double ease(double k) => k < 0.5 ? 2 * k * k : 1 - math.pow(-2 * k + 2, 2) / 2;
-
-String fmtTime(double s) {
-  s = math.max(0, s);
-  if (s < 10) return s.toStringAsFixed(1);
-  final m = s ~/ 60, r = (s % 60).floor();
-  return '$m:${r.toString().padLeft(2, '0')}';
-}
-
 class StarshipGame extends FlameGame with KeyboardEvents {
-  StarshipGame({this.reduceMotion = false});
+  StarshipGame({this.reduceMotion = false, this.onExit});
 
   final bool reduceMotion;
+
+  /// Called when the player presses Esc to go back to the mini game menu.
+  final void Function()? onExit;
   final Sfx sfx = Sfx();
 
   // Input.
@@ -240,6 +231,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
         sfx.init();
         startGame();
       }
+      if (k == LogicalKeyboardKey.escape) onExit?.call();
       if (k == LogicalKeyboardKey.keyM) {
         sfx.init();
         sfx.toggleMute();
@@ -443,7 +435,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
       p.y = 560;
       p.vy = 0;
     }
-    if (p.onGround && p.vx.abs() > 120 && _rng.nextDouble() < dt * 9) {
+    if (p.onGround && p.vx.abs() > 120 && rng.nextDouble() < dt * 9) {
       addPart(p.x + p.w / 2 - p.face * 8, p.y + p.h, -p.face * rand(10, 50), rand(-40, -10), 0.5, rand(3, 6),
           const Color(0xFF8F809F), -10, PartType.smoke);
     }
@@ -481,7 +473,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
     }
     quake = math.max(0, quake - dt);
     sfx.rumble(quake);
-    if (quake > 0 && _rng.nextDouble() < dt * 20) {
+    if (quake > 0 && rng.nextDouble() < dt * 20) {
       addPart(cam.dx + rand(0, stageW), cam.dy - 10, rand(-20, 20), rand(40, 120), 2, rand(1.5, 3),
           const Color(0xFFB8A8C8), 200, PartType.grain);
     }
@@ -500,7 +492,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
       d.vy += 900 * dt;
       d.y += d.vy * dt;
       d.spin += d.vs * dt;
-      if (_rng.nextDouble() < dt * 40) {
+      if (rng.nextDouble() < dt * 40) {
         addPart(d.x + rand(-4, 4), d.y - d.r, rand(-20, 20), rand(-40, -10), rand(0.3, 0.6), rand(3, 6),
             const Color(0xFFFF8C4A), -40, PartType.flame);
       }
@@ -531,7 +523,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
       final c = (t + v.phase) % v.period;
       v.on = c > v.period - 1.0;
       v.warm = !v.on && c > v.period - 1.5;
-      if (v.warm && _rng.nextDouble() < dt * 20) {
+      if (v.warm && rng.nextDouble() < dt * 20) {
         addPart(v.x + rand(4, v.w - 4), v.y - 4, rand(-10, 10), rand(-80, -30), 0.5, rand(2, 4), const Color(0xFFFFCF7A), 0,
             PartType.spark);
       }
@@ -547,7 +539,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
     }
     // Lava.
     for (final l in lavas) {
-      if (_rng.nextDouble() < dt * 6) {
+      if (rng.nextDouble() < dt * 6) {
         addPart(l.x + rand(0, l.w), l.y, 0, rand(-90, -40), 0.6, rand(2, 4), const Color(0xFFFFCF6A), 200, PartType.spark);
       }
       if (p.boarded == null && p.stun <= 0 && p.overlaps(l)) knock(-p.face, 'HOT HOT HOT!', -600);
@@ -571,7 +563,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
       } else {
         if (p.standingOn == s && p.onGround) {
           s.crumble += dt;
-          if (_rng.nextDouble() < dt * 25) {
+          if (rng.nextDouble() < dt * 25) {
             addPart(s.x + rand(0, s.w), s.y + s.h, rand(-10, 10), rand(20, 60), 0.6, rand(1.5, 3), const Color(0xFF9A8AA8),
                 400, PartType.grain);
           }
@@ -591,11 +583,11 @@ class StarshipGame extends FlameGame with KeyboardEvents {
     hintTimer -= dt;
     for (final tr in triggers) {
       if (tr.fired) continue;
-      if (_rng.nextDouble() < dt * 5) {
+      if (rng.nextDouble() < dt * 5) {
         addPart(tr.dust.dx + rand(-10, 10), tr.dust.dy, rand(-8, 8), rand(10, 40), rand(1.2, 2), rand(1.2, 2.6),
             const Color(0xFFD9C9E6), 60, PartType.grain);
       }
-      if (_rng.nextDouble() < dt * 1.5) {
+      if (rng.nextDouble() < dt * 1.5) {
         addPart(tr.lamp.dx, tr.lamp.dy, rand(-60, 60), rand(-90, -20), 0.5, rand(1.5, 2.5), const Color(0xFFBFE9FF), 500,
             PartType.spark);
       }
@@ -707,7 +699,7 @@ class StarshipGame extends FlameGame with KeyboardEvents {
   void updateRocket(Rocket r, double dt) {
     final left = r.launchT - t;
     if (r.phase == RocketPhase.wait) {
-      if (left < 4 && _rng.nextDouble() < dt * 30) {
+      if (left < 4 && rng.nextDouble() < dt * 30) {
         addPart(r.x + rand(-30, 30), r.padY - 6, rand(-120, 120), rand(-40, -5), rand(0.8, 1.4), rand(10, 18),
             const Color(0xFFD8D0E4), -20, PartType.smoke);
       }
