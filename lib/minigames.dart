@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'bench/bench_screen.dart';
 import 'game/runner_screen.dart';
-import 'street/street_screen.dart';
+import 'party/party_screen.dart';
 
 /// One entry in the mini game menu.
 ///
@@ -23,18 +23,18 @@ class MiniGame {
 
 final List<MiniGame> miniGames = [
   MiniGame(
+    title: 'AFTER THE SHOW',
+    tagline: 'The venue is packed. B and A try to find each other through the crowd.',
+    view: 'TOP DOWN',
+    accent: const Color(0xFFFF6B8F),
+    build: (onExit) => PartyScreen(onExit: onExit),
+  ),
+  MiniGame(
     title: 'ROOFTOP RUN',
     tagline: 'Run and jump across the collapsing city. Catch a rocket before the last one leaves.',
     view: 'SIDE VIEW',
     accent: const Color(0xFFFF7A3D),
     build: (onExit) => RunnerScreen(onExit: onExit),
-  ),
-  MiniGame(
-    title: 'STREET ESCAPE',
-    tagline: 'On foot through the burning streets. Find your way to the launch pad.',
-    view: 'TOP DOWN',
-    accent: const Color(0xFF9FE3FF),
-    build: (onExit) => StreetScreen(onExit: onExit),
   ),
   MiniGame(
     title: 'KEEP WARM',
