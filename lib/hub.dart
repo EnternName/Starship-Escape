@@ -318,6 +318,8 @@ class _PreviewPainter extends CustomPainter {
       _party(c, s, t);
     } else if (title.contains('WARM')) {
       _bench(c, s, t);
+    } else if (title.contains('STAGE')) {
+      _stage(c, s, t);
     } else {
       c.drawRect(full, Paint()..shader = RadialGradient(colors: [accent.withValues(alpha: 0.5), const Color(0xFF140C22)]).createShader(full));
     }
@@ -357,6 +359,30 @@ class _PreviewPainter extends CustomPainter {
       final mid = Offset.lerp(pa, pb, 0.5)!;
       c.drawCircle(mid.translate(0, -10 - (t * 20) % 20), 4, Paint()..color = const Color(0xFFFF6B8F));
     }
+  }
+
+  /// A red curtain with a gold bar and a spotlight that swells to a beat.
+  void _stage(Canvas c, Size s, double t) {
+    final full = Offset.zero & s;
+    c.drawRect(full, Paint()..color = const Color(0xFF1A0A14));
+    final beat = math.pow(math.sin(t * 3).abs(), 6).toDouble();
+    final spot = Offset(s.width / 2, s.height * 0.62);
+    c.drawCircle(spot, s.height * (0.35 + beat * 0.08), Paint()..shader = RadialGradient(colors: [Color.fromRGBO(255, 230, 190, 0.45 + beat * 0.3), const Color(0x00FFE6BE)])
+        .createShader(Rect.fromCircle(center: spot, radius: s.height * 0.45))..blendMode = BlendMode.plus);
+    final open = 0.18 + math.sin(t * 0.5).abs() * 0.08;
+    for (final side in [0, 1]) {
+      final w = s.width * (0.5 - open);
+      final x0 = side == 0 ? 0.0 : s.width - w;
+      for (var i = 0; i < 7; i++) {
+        final fx = x0 + i * w / 7;
+        c.drawRect(Rect.fromLTWH(fx, 0, w / 7 + 1, s.height),
+            Paint()..shader = LinearGradient(colors: [const Color(0xFF8C1A2A), const Color(0xFFC8303E), const Color(0xFF7A1424)])
+                .createShader(Rect.fromLTWH(fx, 0, w / 7, s.height)));
+      }
+    }
+    c.drawRect(Rect.fromLTWH(0, 0, s.width, s.height * 0.1), Paint()..color = const Color(0xFF7A1424));
+    c.drawRect(Rect.fromLTWH(0, s.height * 0.1, s.width, 5), Paint()..color = const Color(0xFFE8B84A));
+    c.drawRect(Rect.fromLTWH(0, s.height * 0.86, s.width, s.height * 0.14), Paint()..color = const Color(0xFF3A2414));
   }
 
   /// Two figures on a bench under a lamp, with snow and a pink glow.
