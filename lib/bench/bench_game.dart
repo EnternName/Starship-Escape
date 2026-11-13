@@ -83,7 +83,6 @@ class BenchGame extends FlameGame with KeyboardEvents {
   double hugPose = 0, kissPose = 0, callFlash = 0, multPulse = 0, shake = 0;
   double pressHug = 0, pressKiss = 0, pressBoard = 0, kissDenied = 0;
   int _ticks = 0, _lastMult = 1;
-  double _drainShown = 0, _drainTimer = 0;
   double shipLift = 0;
 
   final List<_Part> _parts = [];
@@ -129,7 +128,6 @@ class BenchGame extends FlameGame with KeyboardEvents {
     hugPose = kissPose = callFlash = multPulse = shipLift = 0;
     _ticks = 0;
     _lastMult = 1;
-    _drainShown = _drainTimer = 0;
     _parts.clear();
     _floats.clear();
   }
@@ -248,15 +246,6 @@ class BenchGame extends FlameGame with KeyboardEvents {
     pressBoard = math.max(0, pressBoard - dt * 6);
     kissDenied = math.max(0, kissDenied - dt * 3);
 
-    if (_drainShown > 0) {
-      _drainTimer += dt;
-      if (_drainTimer > 0.3) {
-        _floats.add(_Float('-${_drainShown.round()}', _benchX + _r(-30, 30), 250, hex(0xFF4D6D), 18));
-        _drainShown = 0;
-        _drainTimer = 0;
-      }
-    }
-
     _ambientParticles(dt);
     _updateSnow(dt);
     for (final p in _parts) {
@@ -310,8 +299,6 @@ class BenchGame extends FlameGame with KeyboardEvents {
           }
           _lastMult = m;
           _floats.add(_Float('+${e.amount}', _benchX + _r(-50, 50), 260, hex(0xFFD36B), 18 + m * 2.0));
-        case BenchEventKind.drain:
-          _drainShown += e.amount;
         case BenchEventKind.boardingCall:
           callFlash = 1;
           sfx.hit();
@@ -864,7 +851,7 @@ class BenchGame extends FlameGame with KeyboardEvents {
       rr(c, _benchX - 80, 150, 160 * (1 - k), 6, 3, fill(hex(0x9FE3FF)));
     } else if (sim.hot) {
       final on = math.sin(real * 14) > 0;
-      drawText(c, 'TOO HOT', _benchX, 140, size: 26, family: _display, color: on ? hex(0xFF4D6D) : hex(0xFFD36B), align: TextAlign.center);
+      drawText(c, 'FLUSTERED', _benchX, 140, size: 26, family: _display, color: on ? hex(0xFF4D6D) : hex(0xFFD36B), align: TextAlign.center);
     }
   }
 

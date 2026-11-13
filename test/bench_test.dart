@@ -58,14 +58,15 @@ void main() {
     expect(s.kissReady, isTrue);
   });
 
-  test('staying too hot drains points', () {
+  test('too hot only stops points, it never takes them away', () {
     final s = BenchSim(seed: 6);
     run(s, 4, each: cozyPlayer);
     final before = s.score;
     run(s, 3, each: (s) {
       if (s.heat < 95) s.hug();
     });
-    expect(s.score, lessThan(before));
+    expect(s.hot, isTrue);
+    expect(s.score, greaterThanOrEqualTo(before));
     expect(s.running, isTrue);
   });
 }

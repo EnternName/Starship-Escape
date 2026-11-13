@@ -6,13 +6,13 @@ import 'dart:math' as math;
 /// Two crewmates wait on a bench at a freezing launch pad. The cold pulls the
 /// heat meter down. A hug is a small, steady warm-up you can tap often. A kiss
 /// is a big burst on a cooldown that can overshoot. Points come in while the
-/// heat stays in the cozy band. Stay too hot and points drain. Stay too cold
-/// and they give up and leave. Near the end a boarding call opens a window,
+/// heat stays in the cozy band. Too hot only leaves them flustered. Stay too
+/// cold and they give up and leave. Near the end a boarding call opens a window,
 /// and boarding inside it earns a bonus.
 
 enum BenchEnd { boarded, early, late, froze }
 
-enum BenchEventKind { hug, kiss, points, drain, boardingCall, end }
+enum BenchEventKind { hug, kiss, points, boardingCall, end }
 
 class BenchEvent {
   BenchEvent(this.kind, [this.amount = 0]);
@@ -42,10 +42,8 @@ class BenchSim {
   static const double kissSpread = 0.45; // seconds the kiss heat arrives over
   static const double kissCooldown = 2.4;
   static const double leaveAfterCold = 1.6; // seconds below coldLine before they leave
-  static const double hotGrace = 1.2; // seconds above hotLine before points drain
   static const double tickEvery = 0.5;
   static const int tickPoints = 10;
-  static const double drainPerSec = 15;
   static const int boardBonus = 200;
 
   final math.Random _rng;
@@ -55,7 +53,7 @@ class BenchSim {
   double kissCd = 0;
   double _kissLeft = 0;
   double coldFor = 0, hotFor = 0, cozyFor = 0;
-  double _tick = 0, _drain = 0;
+  double _tick = 0;
   double gust = 0, _gustTimer = 3;
   int score = 0;
   int bonus = 0;
@@ -138,20 +136,6 @@ class BenchSim {
     }
 
     hotFor = hot ? hotFor + dt : 0;
-    if (hotFor > hotGrace) {
-      _drain += drainPerSec * dt;
-      final whole = _drain.floor();
-      if (whole >= 1) {
-        _drain -= whole;
-        final lost = math.min(score, whole);
-        if (lost > 0) {
-          score -= lost;
-          events.add(BenchEvent(BenchEventKind.drain, lost));
-        }
-      }
-    } else {
-      _drain = 0;
-    }
 
     coldFor = cold ? coldFor + dt : 0;
     if (coldFor >= leaveAfterCold) {
