@@ -1,0 +1,62 @@
+import 'package:flutter/widgets.dart';
+
+import 'bench/bench_screen.dart';
+import 'game/runner_screen.dart';
+import 'games/stage/stage_screen.dart';
+import 'games/workshop/workshop_screen.dart';
+import 'party/party_screen.dart';
+
+/// One entry in the mini game menu.
+///
+/// To add a game: build a screen widget that takes an `onExit` callback
+/// (wrap it in `StageFrame` from `shared/stage_frame.dart` to match the look),
+/// then add one line to [miniGames]. The list is in story order.
+class MiniGame {
+  const MiniGame({required this.title, required this.tagline, required this.view, required this.accent, required this.build});
+
+  final String title;
+  final String tagline;
+
+  /// Shown on the card, for example "SIDE VIEW" or "TOP DOWN".
+  final String view;
+  final Color accent;
+  final Widget Function(VoidCallback onExit) build;
+}
+
+final List<MiniGame> miniGames = [
+  MiniGame(
+    title: 'AFTER THE SHOW',
+    tagline: 'The venue is packed and B is oblivious. As A, push through the crowd and get noticed.',
+    view: 'TOP DOWN',
+    accent: const Color(0xFFFF6B8F),
+    build: (onExit) => PartyScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'STAGE FRIGHT',
+    tagline: 'Show night on the ship. Hit the timing bar on cue, or A and B go off script.',
+    view: 'TIMING',
+    accent: const Color(0xFFFF8FB8),
+    build: (onExit) => StageScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'WORKSHOP',
+    tagline: 'Movement class with the other performers. Hit each arrow as it reaches the ring.',
+    view: 'RHYTHM',
+    accent: const Color(0xFFFFD166),
+    build: (onExit) => WorkshopScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'KEEP WARM',
+    tagline: 'A and B wait on a frozen launch pad. Hug and kiss to stay cozy, then board on time.',
+    view: 'TAP',
+    accent: const Color(0xFFFF5C8A),
+    build: (onExit) => BenchScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'ROOFTOP RUN',
+    tagline: 'Run and jump across the collapsing city. Catch a rocket before the last one leaves.',
+    view: 'SIDE VIEW',
+    accent: const Color(0xFFFF7A3D),
+    build: (onExit) => RunnerScreen(onExit: onExit),
+  ),
+];
