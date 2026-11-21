@@ -108,6 +108,12 @@ class Seeker extends Person {
   Seeker(super.x, super.y, super.outfit, super.hair, super.skin, this.label);
   final String label;
   double stun = 0, tx = 0, ty = 0, retarget = 0, lookX = 0, lookY = 0;
+
+  /// B's glances away: time until the next one, and time left in the current one.
+  double glanceIn = 3, glanceLeft = 0, glanceAng = 0;
+
+  /// True just before B looks away, so the player can see it coming.
+  bool get aboutToGlance => glanceLeft <= 0 && glanceIn < 0.5;
 }
 
 class PartyGame extends FlameGame with KeyboardEvents {
@@ -443,7 +449,20 @@ class PartyGame extends FlameGame with KeyboardEvents {
     slide(b, b.vx * dt, b.vy * dt);
     if (!chatting && (b.x - bx).abs() + (b.y - by).abs() < sp * dt * 0.2) b.retarget = math.min(b.retarget, 0.4);
     if (chatting) {
-      face(b, b.lookX - b.x, b.lookY - b.y, dt, 3);
+      // Every few seconds B glances away from the group, then back.
+      if (b.glanceLeft > 0) {
+        b.glanceLeft -= dt;
+        face(b, math.cos(b.glanceAng), math.sin(b.glanceAng), dt, 10);
+        if (b.glanceLeft <= 0) b.glanceIn = rand(glanceGap.$1, glanceGap.$2);
+      } else {
+        b.glanceIn -= dt;
+        face(b, b.lookX - b.x, b.lookY - b.y, dt, 6);
+        if (b.glanceIn <= 0) {
+          b.glanceLeft = rand(1.0, 1.6);
+          final toGroup = math.atan2(b.lookY - b.y, b.lookX - b.x);
+          b.glanceAng = toGroup + (rng.nextBool() ? 1 : -1) * rand(1.6, 2.6);
+        }
+      }
       if (b.bubble <= 0 && rng.nextDouble() < dt * 0.15) {
         b.bubble = 1.8;
         b.say = _bLines[rng.nextInt(_bLines.length)];
@@ -463,6 +482,9 @@ class PartyGame extends FlameGame with KeyboardEvents {
   }
 
   static const double sightRange = 170, sightAngle = 0.6;
+
+  /// Seconds between B's glances away while chatting.
+  static const glanceGap = (2.5, 4.5);
   static const _bLines = ['...and then the drummer...', 'ha!', 'no, seriously', 'what a night', 'right?', 'one more song'];
   static const _ignored = ['not looking your way', 'B did not see you', 'still chatting', 'get in front of B'];
 
@@ -589,12 +611,12 @@ class PartyGame extends FlameGame with KeyboardEvents {
       // B only notices A standing in front, close, for a moment.
       if (inSight) {
         final near = 1 - (dist / sightRange).clamp(0.0, 1.0);
-        attention = math.min(1, attention + dt * (0.45 + near * 0.6));
+        attention = math.min(1, attention + dt * (0.35 + near * 0.4));
         if (rng.nextDouble() < dt * 10) {
           addPart(PParticle(a.x + rand(-8, 8), a.y - 44, rand(-10, 10), rand(-40, -20), 1, rand(4, 6), const Color(0xFFFF6B8F), PPart.heart));
         }
       } else {
-        attention = math.max(0, attention - dt * 0.25);
+        attention = math.max(0, attention - dt * 0.6);
         noticeLine -= dt;
         if (dist < 90 && noticeLine <= 0) {
           noticeLine = 4;

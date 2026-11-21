@@ -115,7 +115,9 @@ extension PartyRender on PartyGame {
     }
     path.close();
     final col = lit ? const Color(0xFFFF6B8F) : const Color(0xFF9FE3FF);
-    c.drawPath(path, shaderPaint(radial(Offset(b.x, b.y), range, [col.withValues(alpha: lit ? 0.3 : 0.14), col.withValues(alpha: 0)]), add: true));
+    // The wedge flickers just before B looks away.
+    final warn = b.aboutToGlance && math.sin(real * 40) > 0 ? 0.5 : 1.0;
+    c.drawPath(path, shaderPaint(radial(Offset(b.x, b.y), range, [col.withValues(alpha: (lit ? 0.3 : 0.14) * warn), col.withValues(alpha: 0)]), add: true));
   }
 
   void drawMeetGlow(Canvas c) {

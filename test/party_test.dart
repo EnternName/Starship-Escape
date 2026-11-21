@@ -106,4 +106,22 @@ void main() {
     expect(game.state, PartyState.play);
     expect(game.attention, 0);
   });
+
+  test('B glances away while chatting, and back again', () {
+    game.guests = [];
+    final b = game.b;
+    b
+      ..tx = b.x
+      ..ty = b.y
+      ..lookX = b.x + 50
+      ..lookY = b.y
+      ..retarget = 99
+      ..glanceIn = 0.1;
+    run(0.6);
+    expect(b.glanceLeft, greaterThan(0));
+    expect(b.fx, lessThan(0.5));
+    run(2);
+    expect(b.glanceLeft, lessThanOrEqualTo(0));
+    expect(b.fx, greaterThan(0.9));
+  });
 }
