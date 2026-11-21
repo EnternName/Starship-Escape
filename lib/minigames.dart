@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'game/runner_screen.dart';
 import 'games/stage/stage_screen.dart';
+import 'games/workshop/workshop_screen.dart';
 import 'party/party_screen.dart';
 
 /// One entry in the mini game menu.
@@ -42,5 +43,12 @@ final List<MiniGame> miniGames = [
     view: 'TIMING',
     accent: const Color(0xFFFF8FB8),
     build: (onExit) => StageScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'WORKSHOP',
+    tagline: 'Movement class with the other performers. Hit each arrow as it reaches the ring.',
+    view: 'RHYTHM',
+    accent: const Color(0xFFFFD166),
+    build: (onExit) => WorkshopScreen(onExit: onExit),
   ),
 ];

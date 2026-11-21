@@ -320,6 +320,8 @@ class _PreviewPainter extends CustomPainter {
       _bench(c, s, t);
     } else if (title.contains('STAGE')) {
       _stage(c, s, t);
+    } else if (title == 'WORKSHOP') {
+      _workshop(c, s, t);
     } else {
       c.drawRect(full, Paint()..shader = RadialGradient(colors: [accent.withValues(alpha: 0.5), const Color(0xFF140C22)]).createShader(full));
     }
@@ -383,6 +385,48 @@ class _PreviewPainter extends CustomPainter {
     c.drawRect(Rect.fromLTWH(0, 0, s.width, s.height * 0.1), Paint()..color = const Color(0xFF7A1424));
     c.drawRect(Rect.fromLTWH(0, s.height * 0.1, s.width, 5), Paint()..color = const Color(0xFFE8B84A));
     c.drawRect(Rect.fromLTWH(0, s.height * 0.86, s.width, s.height * 0.14), Paint()..color = const Color(0xFF3A2414));
+  }
+
+  /// A studio mirror, arrows gliding to a ring, and a row of dancers on the beat.
+  void _workshop(Canvas c, Size s, double t) {
+    final full = Offset.zero & s;
+    c.drawRect(full, Paint()..color = const Color(0xFF2A1640));
+    final seam = s.height * 0.58;
+    c.drawRect(Rect.fromLTWH(s.width * 0.06, s.height * 0.08, s.width * 0.88, seam - s.height * 0.08), Paint()..color = const Color(0xFF150C28));
+    c.drawRect(Rect.fromLTWH(0, seam, s.width, s.height - seam), Paint()..color = const Color(0xFF7A4630));
+    const beatLen = 60 / 96;
+    final ph = t / beatLen;
+    final pulse = math.pow(1 - (ph - ph.floorToDouble()), 3).toDouble();
+    // Ribbon with arrows.
+    final ry = s.height * 0.22, ringX = s.width * 0.16;
+    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTRB(s.width * 0.08, ry - 12, s.width * 0.92, ry + 12), const Radius.circular(12)),
+        Paint()..color = const Color(0xB80E0A1C));
+    c.drawCircle(Offset(ringX, ry), 10 + pulse * 2, Paint()..color = const Color(0xFFF4EFFC)..style = PaintingStyle.stroke..strokeWidth = 2);
+    const cols = [Color(0xFFB78CFF), Color(0xFFFF9A4D), Color(0xFFFFD166)];
+    for (var i = 0; i < 6; i++) {
+      final x = ringX + ((i - ph * 0.5) % 6) * s.width * 0.13;
+      if (x < ringX - 4 || x > s.width * 0.9) continue;
+      c.save();
+      c.translate(x, ry);
+      c.rotate((i % 4) * math.pi / 2);
+      c.drawPath(Path()..moveTo(0, -7)..lineTo(7, 0)..lineTo(2.5, 0)..lineTo(2.5, 7)..lineTo(-2.5, 7)..lineTo(-2.5, 0)..lineTo(-7, 0)..close(),
+          Paint()..color = cols[i % 3]);
+      c.restore();
+    }
+    // Dancers dipping and reaching on the beat.
+    const body = [Color(0xFF2BB3A8), Color(0xFF6A34A0), Color(0xFFF08A3E), Color(0xFFF4F0F6)];
+    for (var i = 0; i < 4; i++) {
+      final x = s.width * (0.2 + i * 0.2), y = s.height * 0.86;
+      final up = (ph.floor() + i).isEven ? 1.0 : 0.0;
+      final h = s.height * 0.18;
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(x, y - h * 0.6 + pulse * 3), width: 14, height: h * 0.7), const Radius.circular(5)),
+          Paint()..color = body[i]);
+      c.drawCircle(Offset(x, y - h * 1.1 + pulse * 3), 7, Paint()..color = const Color(0xFFF0C6A8));
+      final arm = Paint()..color = body[i]..strokeWidth = 4..strokeCap = StrokeCap.round;
+      for (final sd in [-1.0, 1.0]) {
+        c.drawLine(Offset(x + sd * 6, y - h * 0.85 + pulse * 3), Offset(x + sd * (10 + up * 4), y - h * (0.6 + up * 0.75)), arm);
+      }
+    }
   }
 
   /// Two figures on a bench under a lamp, with snow and a pink glow.

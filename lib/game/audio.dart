@@ -11,6 +11,8 @@ class Sfx {
   static const _files = [
     'jump.wav', 'land.wav', 'hit.wav', 'boom.wav', 'creak.wav', 'lucky.wav', 'shortcut.wav',
     'launch.wav', 'win.wav', 'lose.wav', 'debris.wav', 'rumble.wav',
+    'ws_on0.wav', 'ws_on1.wav', 'ws_on2.wav', 'ws_on3.wav', 'ws_back0.wav', 'ws_back1.wav', 'ws_back2.wav', 'ws_back3.wav',
+    'ws_chime0.wav', 'ws_chime1.wav', 'ws_chime2.wav', 'ws_chime3.wav', 'ws_oops.wav',
   ];
 
   bool _started = false;
@@ -63,4 +65,11 @@ class Sfx {
   void win() => _play('win.wav', 0.5);
   void lose() => _play('lose.wav', 0.5);
   void debris() => _play('debris.wav', 0.3);
+
+  // Workshop: one beat of drums and bass over chord [chord] (0..3), the hit
+  // chime for a move (0..3), and a wrong step.
+  void groove(int chord) => _play('ws_on$chord.wav', 0.55);
+  void backbeat(int chord) => _play('ws_back$chord.wav', 0.5);
+  void chime(int move) => _play('ws_chime$move.wav', 0.35);
+  void oops() => _play('ws_oops.wav', 0.5);
 }
