@@ -37,10 +37,10 @@ class ActDef {
   final double slow, fast;
 }
 
-/// The three acts. The two solos come first, in a random order per show.
+/// The three acts. The player picks which one to play.
 const List<ActDef> acts = [
   ActDef(
-    title: "B's SOLO",
+    title: 'B PERFORMS',
     marquee: 'B: ONE PILOT SHOW',
     blurb: 'B performs his comedy act. A watches from the front row.',
     solo: Solo.b,
@@ -80,7 +80,7 @@ const List<ActDef> acts = [
     ],
   ),
   ActDef(
-    title: "A's SOLO",
+    title: 'A PERFORMS',
     marquee: 'A: SONG FOR THE SKY',
     blurb: 'A sings her song. B watches from the front row.',
     solo: Solo.a,
@@ -181,4 +181,4 @@ const List<ActDef> acts = [
 const List<double> crates = [350, 610];
 
 
-const List<String> actNumbers = ['ACT I', 'ACT II', 'ACT III'];
+const List<String> actNumbers = ['SOLO', 'SOLO', 'DUET'];

@@ -43,15 +43,10 @@ enum Judge { perfect, good, ok, miss }
 enum Pose { stand, sit, kneel }
 
 class StageGame extends FlameGame with KeyboardEvents {
-  StageGame({this.reduceMotion = false, this.onExit, bool? aSingsFirst}) {
-    // Who performs solo first is a coin flip: sometimes A watches oblivious B,
-    // sometimes B watches A.
-    final aFirst = aSingsFirst ?? rng.nextBool();
-    playbill = aFirst ? [acts[1], acts[0], acts[2]] : [acts[0], acts[1], acts[2]];
-  }
+  StageGame({this.reduceMotion = false, this.onExit});
 
-  /// Acts in the order they play tonight.
-  late final List<ActDef> playbill;
+  /// Acts on the title curtain. The player picks who performs.
+  List<ActDef> get playbill => acts;
 
   final bool reduceMotion;
   final VoidCallback? onExit;
@@ -170,7 +165,7 @@ class StageGame extends FlameGame with KeyboardEvents {
       final n = row == 0 ? 13 : 11;
       for (var i = 0; i < n; i++) {
         final x = (i + 0.5) / n * _sw + (row == 0 ? 0 : 20) + r.nextDouble() * 16 - 8;
-        fans.add(Fan(x, row == 0 ? 500 : 538, row, r.nextDouble() * 6, r.nextInt(5), 0.85 + r.nextDouble() * 0.3));
+        fans.add(Fan(x, row == 0 ? 524 : 558, row, r.nextDouble() * 6, r.nextInt(5), 0.85 + r.nextDouble() * 0.3));
       }
     }
   }
@@ -689,7 +684,7 @@ enum PartKind { spark, star, confetti, dust, heart }
 
 /// The front row seat of whoever is watching a solo act.
 const double watchSeatX = 820;
-const double watchSeatY = 500;
+const double watchSeatY = 524;
 
 class Particle {
   Particle(this.x, this.y, this.vx, this.vy, this.life, this.size, this.color, this.g, this.kind) : max = life;

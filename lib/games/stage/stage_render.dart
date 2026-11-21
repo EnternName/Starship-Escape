@@ -547,14 +547,14 @@ extension StageRender on StageGame {
   }
 
   // ---------- the timing bar ----------
-  static const double barX = 250, barW = 460, barY = 478, barH = 26;
+  static const double barX = 250, barW = 460, barY = 456, barH = 22;
 
   void drawBar(ui.Canvas c) {
     final appear = phase == StagePhase.intro ? curtain : 1.0;
     final y = barY + (1 - appear) * 60;
     // Backing panel.
-    rr(c, barX - 46, y - 18, barW + 92, barH + 36, 18, fill(hex(0x0E0A1C, 0.82 * appear)));
-    rr(c, barX - 46, y - 18, barW + 92, barH + 36, 18, stroke(hex(0xE8B84A, 0.5 * appear), 1.5));
+    rr(c, barX - 40, y - 9, barW + 80, barH + 18, 14, fill(hex(0x0E0A1C, 0.88 * appear)));
+    rr(c, barX - 40, y - 9, barW + 80, barH + 18, 14, stroke(hex(0xE8B84A, 0.5 * appear), 1.5));
     // Track.
     final bump = barBump * 2;
     rr(c, barX, y, barW, barH, barH / 2,
@@ -591,7 +591,7 @@ extension StageRender on StageGame {
       for (var k = 5; k >= 1; k--) {
         final px = barPos(math.max(0, t - k * 0.025));
         final sx = barX + 6 + (barW - 12 - 16) * px;
-        if (phase != StagePhase.intro) rr(c, sx, y + 5, 16, 16, 3, glow(rgba(200, 240, 255, 0.07 * (6 - k) * appear)));
+        if (phase != StagePhase.intro) rr(c, sx, y + 3, 16, 16, 3, glow(rgba(200, 240, 255, 0.07 * (6 - k) * appear)));
       }
       final sx = barX + 6 + (barW - 12 - 16) * now;
       final sq = 16.0 + bump;
@@ -680,8 +680,8 @@ extension StageRender on StageGame {
     }
     c.restore();
     // Name tag.
-    rr(c, watchSeatX - 12, watchSeatY + 18, 24, 16, 6, fill(hex(isA ? _colA : _colB)));
-    drawText(c, isA ? 'A' : 'B', watchSeatX, watchSeatY + 31, size: 11, family: fontDisplay, color: hex(0x1A0F22), align: TextAlign.center);
+    rr(c, watchSeatX + 30, watchSeatY - 44, 24, 16, 6, fill(hex(isA ? _colA : _colB)));
+    drawText(c, isA ? 'A' : 'B', watchSeatX + 42, watchSeatY - 31, size: 11, family: fontDisplay, color: hex(0x1A0F22), align: TextAlign.center);
   }
 
   void drawParticles(ui.Canvas c) {
@@ -1075,6 +1075,7 @@ extension StageRender on StageGame {
     drawText(c, 'Show night aboard the escape ship, starring A and B', _sw / 2, y + 36, size: 16, color: hex(0xFFE9D6), align: TextAlign.center, weight: FontWeight.w600);
     drawText(c, 'A square slides along the bar. Press when it hits the line.', _sw / 2, y + 68, size: 14, color: hex(0xF4EFFC, 0.85), align: TextAlign.center);
     drawText(c, 'Miss, and someone goes off script.', _sw / 2, y + 90, size: 14, color: hex(0xF4EFFC, 0.85), align: TextAlign.center);
+    drawText(c, 'PICK WHO PERFORMS', _sw / 2, 276, size: 12, color: hex(0xFFB3D1), align: TextAlign.center, weight: FontWeight.w600);
     for (var i = 0; i < acts.length; i++) {
       final r = StageGame.actCard(i);
       final on = i == act;
@@ -1135,7 +1136,7 @@ extension StageRender on StageGame {
       tp.paint(c, ui.Offset(-tp.width / 2, 86));
     }
     final a = phaseT > 1.2 ? 0.55 + 0.45 * math.sin(real * 3) : 0.0;
-    drawText(c, 'TAP FOR ${actNumbers[(act + 1) % acts.length]}   ·   R TO REPLAY', 0, 146, size: 13, family: fontDisplay, color: hex(0xFFFFFF, a), align: TextAlign.center);
+    drawText(c, 'TAP FOR THE NEXT ACT   ·   R TO REPLAY', 0, 146, size: 13, family: fontDisplay, color: hex(0xFFFFFF, a), align: TextAlign.center);
     c.restore();
     // Hearts drift up when the chemistry was good.
     if (ratio >= 0.55) {

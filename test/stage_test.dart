@@ -11,8 +11,8 @@ void main() {
     }
   }
 
-  StageGame start({int act = 0, bool aFirst = false}) {
-    final g = StageGame(aSingsFirst: aFirst)..reset();
+  StageGame start({int act = 0}) {
+    final g = StageGame()..reset();
     g.selectAct(act);
     g.onStageTap();
     run(g, 2.5);
@@ -20,12 +20,13 @@ void main() {
     return g;
   }
 
-  test('three acts: two solos in either order, then the duet', () {
-    final bFirst = StageGame(aSingsFirst: false);
-    final aFirst = StageGame(aSingsFirst: true);
-    expect(bFirst.playbill.map((a) => a.solo), [Solo.b, Solo.a, null]);
-    expect(aFirst.playbill.map((a) => a.solo), [Solo.a, Solo.b, null]);
-    expect(bFirst.playbill.last.lines.length, 16);
+  test('three acts to pick from: B performs, A performs, the duet', () {
+    final g = StageGame()..reset();
+    expect(g.playbill.map((a) => a.solo), [Solo.b, Solo.a, null]);
+    expect(g.playbill.last.lines.length, 16);
+    g.selectAct(1);
+    expect(g.performer, same(g.actA));
+    expect(g.watcher, same(g.actB));
   });
 
   test('the square is on the target line at every cue', () {
