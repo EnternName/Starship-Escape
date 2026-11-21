@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'bench/bench_screen.dart';
 import 'game/runner_screen.dart';
 import 'party/party_screen.dart';
 
@@ -34,5 +35,12 @@ final List<MiniGame> miniGames = [
     view: 'SIDE VIEW',
     accent: const Color(0xFFFF7A3D),
     build: (onExit) => RunnerScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'KEEP WARM',
+    tagline: 'A and B wait on a frozen launch pad. Hug and kiss to stay cozy, then board on time.',
+    view: 'TAP',
+    accent: const Color(0xFFFF5C8A),
+    build: (onExit) => BenchScreen(onExit: onExit),
   ),
 ];
