@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'bench/bench_screen.dart';
 import 'game/runner_screen.dart';
 import 'games/stage/stage_screen.dart';
 import 'games/workshop/workshop_screen.dart';
@@ -9,7 +10,7 @@ import 'party/party_screen.dart';
 ///
 /// To add a game: build a screen widget that takes an `onExit` callback
 /// (wrap it in `StageFrame` from `shared/stage_frame.dart` to match the look),
-/// then add one line to [miniGames].
+/// then add one line to [miniGames]. The list is in story order.
 class MiniGame {
   const MiniGame({required this.title, required this.tagline, required this.view, required this.accent, required this.build});
 
@@ -31,13 +32,6 @@ final List<MiniGame> miniGames = [
     build: (onExit) => PartyScreen(onExit: onExit),
   ),
   MiniGame(
-    title: 'ROOFTOP RUN',
-    tagline: 'Run and jump across the collapsing city. Catch a rocket before the last one leaves.',
-    view: 'SIDE VIEW',
-    accent: const Color(0xFFFF7A3D),
-    build: (onExit) => RunnerScreen(onExit: onExit),
-  ),
-  MiniGame(
     title: 'STAGE FRIGHT',
     tagline: 'Show night on the ship. Hit the timing bar on cue, or A and B go off script.',
     view: 'TIMING',
@@ -50,5 +44,19 @@ final List<MiniGame> miniGames = [
     view: 'RHYTHM',
     accent: const Color(0xFFFFD166),
     build: (onExit) => WorkshopScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'KEEP WARM',
+    tagline: 'A and B wait on a frozen launch pad. Hug and kiss to stay cozy, then board on time.',
+    view: 'TAP',
+    accent: const Color(0xFFFF5C8A),
+    build: (onExit) => BenchScreen(onExit: onExit),
+  ),
+  MiniGame(
+    title: 'ROOFTOP RUN',
+    tagline: 'Run and jump across the collapsing city. Catch a rocket before the last one leaves.',
+    view: 'SIDE VIEW',
+    accent: const Color(0xFFFF7A3D),
+    build: (onExit) => RunnerScreen(onExit: onExit),
   ),
 ];

@@ -101,7 +101,7 @@ class _HubState extends State<Hub> with SingleTickerProviderStateMixin {
                         const Text('How they met, one moment at a time.', style: TextStyle(color: ashColor, fontSize: 17)),
                         const SizedBox(height: 28),
                         ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 960),
+                          constraints: BoxConstraints(maxWidth: miniGames.length > 4 ? 1140 : 960),
                           child: narrow
                               ? Column(children: [for (final c in cards) Padding(padding: const EdgeInsets.only(bottom: 16), child: c)])
                               : Row(

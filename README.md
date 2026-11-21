@@ -7,7 +7,12 @@ A story in mini games about how A and B met, built with Flutter and the [Flame](
 ## Mini games
 
 - **After the Show** (top down): the venue is packed after the show. You are A. B is somewhere in the crowd, chatting and oblivious. Push through the people, get in front of B and stay there until B notices you. Nothing ends the round.
+- **Stage Fright** (timing): show night. B performs, then A, and later they share the stage in a duet. Press as the square crosses the line, or someone goes off script.
+- **Workshop** (rhythm): movement class with the other performers. Arrows glide along a light ribbon; press the matching direction as each reaches the ring. Session I comes before the Halloween party: you are A and B, in the same class, has not noticed you. Session II comes before the duet: A and B are partners, with moves for A, B or both.
+- **Keep Warm** (tap): A and B wait on a frozen launch pad. Hug and kiss to stay cozy, then board on time.
 - **Rooftop Run** (side view): the original platformer, described below.
+
+The menu lists them in story order.
 
 A new game is one entry in `lib/minigames.dart`: a screen widget that takes `onExit`, usually wrapped in `StageFrame` from `lib/shared/stage_frame.dart`.
 
